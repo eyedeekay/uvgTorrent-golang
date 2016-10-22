@@ -6,6 +6,7 @@ import(
     "net"
     "time"
     "bytes"
+    "fmt"
     "../peer"
 )
 
@@ -52,7 +53,6 @@ func (t *Tracker) Connect(done chan bool) {
         return
     }
     t.connection.SetReadDeadline(time.Now().Add(1*time.Second))
-    // defer t.connection.Close()
 
     buf := make([]byte, 16)
     // connection id
@@ -146,6 +146,7 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
         return
     }
 
+    t.connection.Close()
     if t.ParseAnnounceResponse(buf) == true {
         done <- true
     } else {
@@ -182,4 +183,23 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
     } else {
         return false
     }
+}
+
+func (t *Tracker) Start() {
+    connect_status := make(chan bool)
+
+    for _, p := range t.peers {
+        go p.Connect(connect_status)
+    }
+
+    for i := 0; i < len(t.peers); i++ {
+        <-connect_status
+    }
+
+    for _, p := range t.peers {
+        if p.IsConnected() {
+            go p.Handshake()
+        }
+    }
+    fmt.Println("STARTED")
 }

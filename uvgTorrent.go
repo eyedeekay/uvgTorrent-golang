@@ -15,4 +15,6 @@ func main() {
 
     t.ConnectTrackers()
     t.AnnounceTrackers()
+
+    t.Start()
 }

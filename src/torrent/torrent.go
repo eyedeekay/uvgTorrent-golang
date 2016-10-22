@@ -77,3 +77,11 @@ func (t *Torrent) AnnounceTrackers() {
 
     fmt.Println("announce finished");
 }
+
+func (t *Torrent) Start() {
+    for _, track := range t.Trackers {
+        if track.IsConnected() {
+            track.Start()
+        }
+    }
+}
