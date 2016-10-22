@@ -45,6 +45,8 @@ func (p *Peer) Connect(done chan bool) {
 }
 
 func (p *Peer) Handshake(hash []byte) {
+    defer p.connection.Close()
+
     var pstrlen int8
     pstrlen = 19
     pstr := "BitTorrent protocol"
@@ -58,7 +60,16 @@ func (p *Peer) Handshake(hash []byte) {
     binary.Write(&buff, binary.LittleEndian, hash)
     binary.Write(&buff, binary.LittleEndian, []byte(peer_id))
 
-    fmt.Println(len(buff.Bytes()))
-    p.connection.Close()
+    p.connection.Write(buff.Bytes())
+
+    result := make([]byte, 68)
+    p.connection.SetReadDeadline(time.Now().Add(1*time.Second))
+    _, err := p.connection.Read(result)
+    if err != nil {
+        return
+    }
+    
+    p.handshaked = true
+    fmt.Println(result)
 }
 
