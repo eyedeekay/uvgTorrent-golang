@@ -81,7 +81,7 @@ func (t *Torrent) AnnounceTrackers() {
 func (t *Torrent) Start() {
     for _, track := range t.Trackers {
         if track.IsConnected() {
-            track.Start()
+            track.Start(t.Hash)
         }
     }
 }

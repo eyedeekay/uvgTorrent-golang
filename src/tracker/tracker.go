@@ -54,30 +54,27 @@ func (t *Tracker) Connect(done chan bool) {
     }
     t.connection.SetReadDeadline(time.Now().Add(1*time.Second))
 
-    buf := make([]byte, 16)
-    // connection id
-    binary.BigEndian.PutUint64(buf[0:8], 0x41727101980)
-    // action
-    binary.BigEndian.PutUint32(buf[8:12], 0)
-    // transaction id
-    binary.BigEndian.PutUint32(buf[12:16], 123)
+    var buf bytes.Buffer
+    binary.Write(&buf, binary.BigEndian, uint64(0x41727101980))
+    binary.Write(&buf, binary.BigEndian, uint32(0))
+    binary.Write(&buf, binary.BigEndian, uint32(123))
 
-    n, err := t.connection.Write(buf[:])
-    if err != nil || n < len(buf) {
+    n, err := t.connection.Write(buf.Bytes())
+    if err != nil || n < len(buf.Bytes()) {
         done <- false
         return
     }
 
-    buf = make([]byte, 16)
-    n, _, err = t.connection.ReadFromUDP(buf)
-    if err != nil || n < len(buf) {
+    result := make([]byte, 16)
+    n, _, err = t.connection.ReadFromUDP(result)
+    if err != nil || n < len(result) {
         done <- false
         return
     }
 
-    action := binary.BigEndian.Uint32(buf[0:4])
-    transaction_id := binary.BigEndian.Uint32(buf[4:8])
-    t.connection_id = binary.BigEndian.Uint64(buf[8:16])
+    action := binary.BigEndian.Uint32(result[0:4])
+    transaction_id := binary.BigEndian.Uint32(result[4:8])
+    t.connection_id = binary.BigEndian.Uint64(result[8:16])
 
     if(action == 0 && transaction_id == 123){
         t.connected = true
@@ -91,63 +88,52 @@ func (t *Tracker) IsConnected() bool {
 }
 
 func (t *Tracker) Announce(hash []byte, done chan bool) {
-    buf := make([]byte, 100)
+    var buf bytes.Buffer
     // connection id
-    binary.BigEndian.PutUint64(buf[0:8], t.connection_id)
+    binary.Write(&buf, binary.BigEndian, uint64(t.connection_id))
     // action
-    binary.BigEndian.PutUint32(buf[8:12], 1)
+    binary.Write(&buf, binary.BigEndian, uint32(1))
     // transaction id
-    binary.BigEndian.PutUint32(buf[12:16], 123)
+    binary.Write(&buf, binary.BigEndian, uint32(123))
     // info hash
-    for i := 16; i < 36; i++ {
-        buf[i] = hash[i-16]
-    }
-
-    peer_id := []byte("UVG01234567891234567")
-    for i := 36; i < 56; i++ {
-        buf[i] = peer_id[i-36]
-    }
+    binary.Write(&buf, binary.LittleEndian, hash)
+    // peer id
+    binary.Write(&buf, binary.LittleEndian, []byte("UVG01234567891234567"))
     // downloaded
-    binary.BigEndian.PutUint64(buf[56:64], 0)
+    binary.Write(&buf, binary.BigEndian, uint64(0))
     // left
-    binary.BigEndian.PutUint64(buf[64:72], 0)
+    binary.Write(&buf, binary.BigEndian, uint64(0))
     // uploaded
-    binary.BigEndian.PutUint64(buf[72:80], 0)
+    binary.Write(&buf, binary.BigEndian, uint64(0))
     // event
-    binary.BigEndian.PutUint32(buf[80:84], 2)
+    binary.Write(&buf, binary.BigEndian, uint32(2))
     // ip
-    binary.BigEndian.PutUint32(buf[84:88], 0)
+    binary.Write(&buf, binary.BigEndian, uint32(0))
     // key
-    binary.BigEndian.PutUint32(buf[88:92], 1)
+    binary.Write(&buf, binary.BigEndian, uint32(1))
     // num_want -1
-    var num_want bytes.Buffer
-    binary.Write(&num_want, binary.BigEndian, int32(-1))
-    num_want_bytes := num_want.Bytes()
-    buf[92] = num_want_bytes[0]
-    buf[93] = num_want_bytes[1]
-    buf[94] = num_want_bytes[2]
-    buf[95] = num_want_bytes[3]
+    binary.Write(&buf, binary.BigEndian, int32(-1))
     // port
-    binary.BigEndian.PutUint16(buf[96:98], 0)
+    binary.Write(&buf, binary.BigEndian, uint16(0))
     // extensions
-    binary.BigEndian.PutUint16(buf[98:100], 0)
+    binary.Write(&buf, binary.BigEndian, uint16(0))
 
-    n, err := t.connection.Write(buf[:])
-    if err != nil || n < len(buf) {
+    n, err := t.connection.Write(buf.Bytes())
+    if err != nil || n < len(buf.Bytes()) {
         done <- false
         return
     }
 
-    buf = make([]byte, 2048)
+    result := make([]byte, 2048)
     t.connection.SetReadDeadline(time.Now().Add(1*time.Second))
-    n, _, err = t.connection.ReadFromUDP(buf)
+    n, _, err = t.connection.ReadFromUDP(result)
     if err != nil {
         done <- false
         return
     }
 
     t.connection.Close()
-    if t.ParseAnnounceResponse(buf) == true {
+    if t.ParseAnnounceResponse(result) == true {
         done <- true
     } else {
         done <- false
@@ -185,7 +171,7 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
     }
 }
 
-func (t *Tracker) Start() {
+func (t *Tracker) Start(hash []byte) {
     connect_status := make(chan bool)
 
     for _, p := range t.peers {
@@ -198,7 +184,7 @@ func (t *Tracker) Start() {
 
     for _, p := range t.peers {
         if p.IsConnected() {
-            go p.Handshake()
+            go p.Handshake(hash)
         }
     }
     fmt.Println("STARTED")

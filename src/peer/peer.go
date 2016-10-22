@@ -4,6 +4,8 @@ import(
     "net"
     "fmt"
     "time"
+    "bytes"
+    "encoding/binary"
 )
 
 type Peer struct {
@@ -42,7 +44,21 @@ func (p *Peer) Connect(done chan bool) {
     done <- true
 }
 
-func (p *Peer) Handshake() {
+func (p *Peer) Handshake(hash []byte) {
+    var pstrlen int8
+    pstrlen = 19
+    pstr := "BitTorrent protocol"
+    reserved := [8]byte { 0, 0, 0, 0, 0, 1, 0, 0 }
+    peer_id := "UVG01234567891234567"
+
+    var buff bytes.Buffer
+    binary.Write(&buff, binary.LittleEndian, pstrlen)
+    binary.Write(&buff, binary.LittleEndian, []byte(pstr))
+    binary.Write(&buff, binary.LittleEndian, reserved)
+    binary.Write(&buff, binary.LittleEndian, hash)
+    binary.Write(&buff, binary.LittleEndian, []byte(peer_id))
+
+    fmt.Println(len(buff.Bytes()))
     p.connection.Close()
 }
 
