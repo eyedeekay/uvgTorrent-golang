@@ -12,4 +12,7 @@ func main() {
     fmt.Println(t.Name)
     fmt.Println(t.Hash)
     fmt.Println(t.Trackers)
+
+    t.ConnectTrackers()
+    t.AnnounceTrackers()
 }
