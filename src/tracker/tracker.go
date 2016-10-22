@@ -5,16 +5,19 @@ import(
     "net/url"
     "net"
     "time"
-    "fmt"
     "bytes"
+    "../peer"
 )
 
 type Tracker struct {
     url string
     connected bool
-    peers []string
+    peers []*peer.Peer
     connection *net.UDPConn
     connection_id uint64
+    interval uint32
+    seeders uint32
+    leechers uint32
 }
 
 func NewTracker(tracker_url string) *Tracker {
@@ -143,7 +146,40 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
         return
     }
 
-    fmt.Println(buf)
+    if t.ParseAnnounceResponse(buf) == true {
+        done <- true
+    } else {
+        done <- false
+    }
+}
 
-    done <- true
+func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
+    action := binary.BigEndian.Uint32(announce_response[0:4])
+    transaction_id := binary.BigEndian.Uint32(announce_response[4:8])
+
+    if action == 1 && transaction_id == 123 {
+        t.interval = binary.BigEndian.Uint32(announce_response[8:12])
+        t.leechers = binary.BigEndian.Uint32(announce_response[12:16])
+        t.seeders = binary.BigEndian.Uint32(announce_response[16:20])
+
+        blank_ip := net.ParseIP("0.0.0.0")
+
+        pos := 20
+        for pos < 2048 {
+            ip := make(net.IP, 4)
+            binary.BigEndian.PutUint32(ip, binary.BigEndian.Uint32(announce_response[pos:pos + 4]))
+            if ip.String() == blank_ip.String() {
+                break
+            }
+            port := binary.BigEndian.Uint16(announce_response[pos+4:pos+6])
+
+            t.peers = append(t.peers, peer.NewPeer(ip, port))
+
+            pos += 6
+        }
+
+        return true
+    } else {
+        return false
+    }
 }
