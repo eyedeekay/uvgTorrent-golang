@@ -193,21 +193,16 @@ func (t *Tracker) Start(hash []byte, done chan bool) {
         <-handshake_status
     }
 
+    done <- true
+}
+
+func (t *Tracker) Run(metadata chan []byte, piece chan bool) {
     for _, p := range t.peers {
         if p.IsConnected() {
             if p.CanRequestMetadata() {
                 go p.RequestMetadata()
             }
-        }
-    }
-
-    done <- true
-}
-
-func (t *Tracker) Run(metadata chan string) {
-    for _, p := range t.peers {
-        if p.IsConnected() {
-            go p.HandleMessage(metadata)
+            go p.HandleMessage(metadata, piece)
         }
     }
 }

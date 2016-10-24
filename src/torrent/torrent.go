@@ -1,7 +1,7 @@
 package torrent
 
 import(
-    // "github.com/zeebo/bencode"
+    "github.com/zeebo/bencode"
     "encoding/hex"
     "net/url"
     "strings"
@@ -14,6 +14,7 @@ type Torrent struct {
     Hash []byte
     Trackers []*tracker.Tracker
     connected_trackers int
+    metadata interface{}
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -37,6 +38,8 @@ func NewTorrent(magnet_uri string) *Torrent {
     for _, element := range tr {
         t.Trackers = append(t.Trackers, tracker.NewTracker(element))
     }
+
+    t.metadata = nil
 
     return &t
 }
@@ -93,18 +96,29 @@ func (t *Torrent) Start() {
 }
 
 func (t *Torrent) Run() {
-    metadata := make(chan string)
+    metadata := make(chan []byte)
+    pieces := make(chan bool)
 
     for {
         for _, track := range t.Trackers {
             if track.IsConnected() {
-                go track.Run(metadata)
+                go track.Run(metadata, pieces)
             }
         }
 
-        select {
-            case data := <- metadata:
-                fmt.Println(data)
+        for _, _ = range t.Trackers {
+            select {
+                case data := <- metadata:
+                    if t.metadata == nil {
+                        dict_pos := strings.Index(string(data), "ee") + len("ee")
+                        if err := bencode.DecodeBytes(data[dict_pos:], &t.metadata); err != nil {
+                            panic(err)
+                        }
+                        fmt.Println(t.metadata)
+                    }
+                case <- pieces:
+
+            }
         }
     }
 }
