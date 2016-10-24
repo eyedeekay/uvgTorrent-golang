@@ -79,9 +79,40 @@ func (t *Torrent) AnnounceTrackers() {
 }
 
 func (t *Torrent) Start() {
+    tracker_status := make(chan bool)
+
     for _, track := range t.Trackers {
         if track.IsConnected() {
-            track.Start(t.Hash)
+            go track.Start(t.Hash, tracker_status)
+        }
+    }
+
+    for i := 0; i < t.connected_trackers; i++ {
+        <-tracker_status
+    }
+}
+
+func (t *Torrent) Run() {
+    metadata := make(chan string)
+
+    for {
+        for _, track := range t.Trackers {
+            if track.IsConnected() {
+                go track.Run(metadata)
+            }
+        }
+
+        select {
+            case data := <- metadata:
+                fmt.Println(data)
+        }
+    }
+}
+
+func (t *Torrent) Close() {
+    for _, track := range t.Trackers {
+        if track.IsConnected() {
+            track.Close()
         }
     }
 }

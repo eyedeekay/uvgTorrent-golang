@@ -6,7 +6,6 @@ import(
     "net"
     "time"
     "bytes"
-    "fmt"
     "../peer"
 )
 
@@ -171,9 +170,8 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
     }
 }
 
-func (t *Tracker) Start(hash []byte) {
+func (t *Tracker) Start(hash []byte, done chan bool) {
     connect_status := make(chan bool)
-
     for _, p := range t.peers {
         go p.Connect(connect_status)
     }
@@ -182,10 +180,42 @@ func (t *Tracker) Start(hash []byte) {
         <-connect_status
     }
 
+    handshake_status := make(chan bool)
+    connected_peer_count := 0
     for _, p := range t.peers {
         if p.IsConnected() {
-            go p.Handshake(hash)
+            connected_peer_count++
+            go p.Handshake(hash, handshake_status)
         }
     }
-    fmt.Println("STARTED")
+
+    for i := 0; i < connected_peer_count; i++ {
+        <-handshake_status
+    }
+
+    for _, p := range t.peers {
+        if p.IsConnected() {
+            if p.CanRequestMetadata() {
+                go p.RequestMetadata()
+            }
+        }
+    }
+
+    done <- true
+}
+
+func (t *Tracker) Run(metadata chan string) {
+    for _, p := range t.peers {
+        if p.IsConnected() {
+            go p.HandleMessage(metadata)
+        }
+    }
+}
+
+func (t *Tracker) Close() {
+    for _, p := range t.peers {
+        if p.IsConnected() {
+            p.Close()
+        }
+    }
 }
