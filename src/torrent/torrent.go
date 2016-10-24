@@ -14,7 +14,7 @@ type Torrent struct {
     Hash []byte
     Trackers []*tracker.Tracker
     connected_trackers int
-    metadata interface{}
+    metadata map[string]interface{}
 }
 
 func NewTorrent(magnet_uri string) *Torrent {

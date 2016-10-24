@@ -215,7 +215,6 @@ func (p *Peer) HandleMessage(metadata chan []byte, piece chan bool) {
                 }
                 piece <- true
             } else if handshake_id == 1 {
-                fmt.Println("GOT METADATA")
                 metadata <- message[2:]
             }
         }
