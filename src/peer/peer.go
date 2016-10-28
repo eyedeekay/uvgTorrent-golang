@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/zeebo/bencode"
+	"github.com/unovongalixor/bitfield-golang"
 	"net"
 	"time"
 )
@@ -18,6 +19,7 @@ type Peer struct {
 	ut_metadata        int64
 	metadata_size      int64
 	metadata_requested bool
+	bitfield 		   *bitfield.Bitfield
 }
 
 func NewPeer(ip net.IP, port uint16) *Peer {
@@ -29,6 +31,7 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.ut_metadata = 0
 	p.metadata_size = 0
 	p.metadata_requested = false
+	p.bitfield = bitfield.NewBitfield(true, 1)
 
 	return &p
 }
@@ -181,10 +184,15 @@ func (p *Peer) HandleMessage(metadata chan []byte, piece chan bool) {
 			fmt.Println(p.ip, "MSG_NOT_INTERESTED")
 			piece <- true
 		} else if msg_id == MSG_HAVE {
-			fmt.Println(p.ip, "MSG_HAVE")
+			var have_bit int32
+			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
+			fmt.Println(p.ip, "MSG_HAVE", int(have_bit))
+
+			p.bitfield.SetBit(int(have_bit))
 			piece <- true
 		} else if msg_id == MSG_BITFIELD {
-			fmt.Println(p.ip, "MSG_BITFIELD")
+			p.bitfield.Copy(message[1:])
+			fmt.Println(p.ip, "MSG_BITFIELD", p.bitfield.Size(), msg_length)
 			piece <- true
 		} else if msg_id == MSG_REQUEST {
 			fmt.Println(p.ip, "MSG_REQUEST")
