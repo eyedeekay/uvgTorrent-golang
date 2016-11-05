@@ -197,5 +197,7 @@ func (t *Torrent) initPieces() {
 		}
 
 		f.End_piece = current_piece_index
+
+		fmt.Println(f.Start_piece, f.End_piece)
 	}
 }
