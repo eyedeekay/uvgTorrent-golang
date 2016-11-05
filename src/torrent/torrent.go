@@ -190,9 +190,8 @@ func (t *Torrent) initPieces() {
 
 			file_bytes_remaining = current_piece.AddBoundary(f, file_bytes_remaining)
 
-			t.addPiece(current_piece)
-
 			if current_piece.GetRemainingBytes() == 0 {
+				t.addPiece(current_piece)
 				current_piece = nil
 			}
 		}
