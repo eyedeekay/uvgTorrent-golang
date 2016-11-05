@@ -2,6 +2,8 @@ package torrent
 
 import (
 	"../tracker"
+	"../file"
+	"../piece"
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
@@ -15,6 +17,12 @@ type Torrent struct {
 	Trackers           []*tracker.Tracker
 	connected_trackers int
 	metadata           map[string]interface{}
+
+	pieces_count	   int64
+	pieces_length	   int64
+	files			   []*file.File
+	pieces			   []*piece.Piece
+	total_length	   int64
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -46,6 +54,7 @@ func NewTorrent(magnet_uri string) *Torrent {
 	}
 
 	t.metadata = nil
+	t.total_length = 0
 
 	return &t
 }
@@ -121,7 +130,24 @@ func (t *Torrent) Run() {
 					if err := bencode.DecodeBytes(data[dict_pos:], &t.metadata); err != nil {
 						panic(err)
 					}
-					fmt.Println(t.metadata)
+					t.pieces_length = t.metadata["piece length"].(int64)
+
+					for _, f := range t.metadata["files"].([]interface{}) {
+						m := f.(map[string]interface{})
+
+						length := m["length"].(int64)
+						p := m["path"].([]interface{})
+
+						path := make([]string, len(p)-1)
+						for _, path_seq := range p {
+							var str string = fmt.Sprintf("%v", path_seq)
+							path = append(path, str)
+						}
+
+						t.addFile(file.NewFile(length, path))
+					}
+
+					t.initPieces()
 				}
 
             // torrent got a chunk from a peer
@@ -137,5 +163,40 @@ func (t *Torrent) Close() {
 		if track.IsConnected() {
 			track.Close()
 		}
+	}
+}
+
+func (t *Torrent) addFile(f *file.File) {
+	t.files = append(t.files, f)
+	t.total_length += f.Length
+}
+
+func (t *Torrent) addPiece(p *piece.Piece) {
+	t.pieces = append(t.pieces, p)
+}
+
+func (t *Torrent) initPieces() {
+	var current_piece *piece.Piece = nil
+	current_piece_index := int64(0)
+	for _, f := range t.files {
+		file_bytes_remaining := f.Length
+		f.Start_piece = current_piece_index
+
+		for file_bytes_remaining > 0 {
+			if current_piece == nil {
+				current_piece = piece.NewPiece(current_piece_index, t.pieces_length)
+				current_piece_index++
+			}
+
+			file_bytes_remaining = current_piece.AddBoundary(f, file_bytes_remaining)
+
+			t.addPiece(current_piece)
+
+			if current_piece.GetRemainingBytes() == 0 {
+				current_piece = nil
+			}
+		}
+
+		f.End_piece = current_piece_index
 	}
 }
