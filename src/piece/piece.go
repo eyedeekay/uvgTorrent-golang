@@ -35,9 +35,10 @@ func (p *Piece) InitChunks(){
     p.length = p.length - p.bytes_remaining
 
     chunk_size := int64(1024*16)
+    number_of_chunks := p.length / chunk_size
     last_chunk_size := p.length % chunk_size
-    
-    fmt.Println(chunk_size, p.length, last_chunk_size)
+
+    fmt.Println(number_of_chunks, p.length, last_chunk_size)
 }
 
 func (p *Piece) SetHash(hash []byte) {
