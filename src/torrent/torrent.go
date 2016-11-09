@@ -179,6 +179,7 @@ func (t *Torrent) addFile(f *file.File) {
 }
 
 func (t *Torrent) addPiece(p *piece.Piece) {
+	p.InitChunks()
 	t.pieces = append(t.pieces, p)
 }
 

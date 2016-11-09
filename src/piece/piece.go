@@ -2,6 +2,7 @@ package piece
 
 import (
     "../file"
+    "fmt"
 )
 
 type Piece struct {
@@ -28,6 +29,15 @@ func NewPiece(index int64, length int64) *Piece {
 	p.boundaries = make(map[*file.File]*Boundary)
 
 	return &p
+}
+
+func (p *Piece) InitChunks(){
+    p.length = p.length - p.bytes_remaining
+
+    chunk_size := int64(1024*16)
+    last_chunk_size := p.length % chunk_size
+    
+    fmt.Println(chunk_size, p.length, last_chunk_size)
 }
 
 func (p *Piece) SetHash(hash []byte) {
