@@ -34,7 +34,6 @@ func (p *Piece) GetRemainingBytes() int64 {
 }
 
 func (p *Piece) AddBoundary(f *file.File, bytes_remaining int64) int64 {
-
     b := &Boundary{}
     b.File_start = f.Length - bytes_remaining
     b.Piece_start = p.length - p.bytes_remaining

@@ -90,7 +90,20 @@ func (p *Peer) Handshake(hash []byte, done chan bool) {
 	binary.Write(&buff, binary.BigEndian, []byte(metadata_message))
 	p.connection.Write(buff.Bytes())
 
+	p.SendInterested()
+
 	done <- true
+}
+
+func (p *Peer) SendInterested() {
+	var msg_len int32 = 1
+	var msg_id int8 = 2
+
+	var buff bytes.Buffer
+	binary.Write(&buff, binary.BigEndian, msg_len)
+	binary.Write(&buff, binary.BigEndian, msg_id)
+
+	p.connection.Write(buff.Bytes())
 }
 
 func (p *Peer) CanRequestMetadata() bool {
@@ -128,7 +141,7 @@ func (p *Peer) RequestMetadata() {
 	}
 }
 
-func (p *Peer) HandleMessage(metadata chan []byte, piece chan bool) {
+func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
@@ -173,41 +186,41 @@ func (p *Peer) HandleMessage(metadata chan []byte, piece chan bool) {
 
 		if msg_id == MSG_CHOKE {
 			fmt.Println(p.ip, "MSG_CHOKE")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_UNCHOKE {
 			fmt.Println(p.ip, "MSG_UNCHOKE")
-			piece <- true
+			request_chunk <- p
 		} else if msg_id == MSG_INTERESTED {
 			fmt.Println(p.ip, "MSG_INTERESTED")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_NOT_INTERESTED {
 			fmt.Println(p.ip, "MSG_NOT_INTERESTED")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_HAVE {
 			var have_bit int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
-			fmt.Println(p.ip, "MSG_HAVE", int(have_bit))
+			//fmt.Println(p.ip, "MSG_HAVE", int(have_bit))
 
 			p.bitfield.SetBit(int(have_bit))
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_BITFIELD {
 			p.bitfield.Copy(message[1:])
 			fmt.Println(p.ip, "MSG_BITFIELD", p.bitfield.Size(), msg_length)
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_REQUEST {
 			fmt.Println(p.ip, "MSG_REQUEST")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_PIECE {
 			fmt.Println(p.ip, "MSG_PIECE")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_CANCEL {
 			fmt.Println(p.ip, "MSG_CANCEL")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_PORT {
 			fmt.Println(p.ip, "MSG_PORT")
-			piece <- true
+			pieces <- true
 		} else if msg_id == MSG_METADATA {
-			fmt.Println(p.ip, "MSG_METADATA")
+			//fmt.Println(p.ip, "MSG_METADATA")
 			var handshake_id int8
 			binary.Read(bytes.NewBuffer(message[1:2]), binary.BigEndian, &handshake_id)
 
@@ -221,7 +234,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, piece chan bool) {
 					m := torrent["m"].(map[string]interface{})
 					p.ut_metadata = m["ut_metadata"].(int64)
 				}
-				piece <- true
+				pieces <- true
 			} else if handshake_id == 1 {
 				metadata <- message[2:]
 			}

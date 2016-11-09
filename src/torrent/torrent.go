@@ -4,6 +4,7 @@ import (
 	"../tracker"
 	"../file"
 	"../piece"
+	"../peer"
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
@@ -112,11 +113,12 @@ func (t *Torrent) Start() {
 func (t *Torrent) Run() {
 	metadata := make(chan []byte)
 	pieces := make(chan bool)
+	request_chunk := make(chan *peer.Peer)
 
 	for {
 		for _, track := range t.Trackers {
 			if track.IsConnected() {
-				go track.Run(metadata, pieces)
+				go track.Run(metadata, pieces, request_chunk)
 			}
 		}
 
@@ -153,6 +155,9 @@ func (t *Torrent) Run() {
             // torrent got a chunk from a peer
 			case <-pieces:
 
+			// a peer alerts the torrent it is ready to request a chunk
+			case p := <-request_chunk:
+				fmt.Println(p)
 			}
 		}
 	}
@@ -197,7 +202,5 @@ func (t *Torrent) initPieces() {
 		}
 
 		f.End_piece = current_piece_index
-
-		fmt.Println(f.Start_piece, f.End_piece)
 	}
 }

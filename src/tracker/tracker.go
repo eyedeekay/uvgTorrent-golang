@@ -200,13 +200,13 @@ func (t *Tracker) Start(hash []byte, done chan bool) {
 	done <- true
 }
 
-func (t *Tracker) Run(metadata chan []byte, piece chan bool) {
+func (t *Tracker) Run(metadata chan []byte, pieces chan bool, request_chunk chan *peer.Peer) {
 	for _, p := range t.peers {
 		if p.IsConnected() {
 			if p.CanRequestMetadata() {
 				go p.RequestMetadata()
 			}
-			go p.HandleMessage(metadata, piece)
+			go p.HandleMessage(metadata, pieces, request_chunk)
 		}
 	}
 }
