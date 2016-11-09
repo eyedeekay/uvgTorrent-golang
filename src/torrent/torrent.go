@@ -24,6 +24,8 @@ type Torrent struct {
 	files			   []*file.File
 	pieces			   []*piece.Piece
 	total_length	   int64
+
+	peers_requesting   []*peer.Peer
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -149,7 +151,7 @@ func (t *Torrent) Run() {
 						t.addFile(file.NewFile(length, path))
 					}
 
-					t.initPieces()
+					t.initPieces([]byte(t.metadata["pieces"].(string)))
 				}
 
             // torrent got a chunk from a peer
@@ -157,7 +159,7 @@ func (t *Torrent) Run() {
 
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
-				fmt.Println(p)
+				t.peers_requesting = append(t.peers_requesting, p)
 			}
 		}
 	}
@@ -180,16 +182,17 @@ func (t *Torrent) addPiece(p *piece.Piece) {
 	t.pieces = append(t.pieces, p)
 }
 
-func (t *Torrent) initPieces() {
+func (t *Torrent) initPieces(pieces []byte) {
 	var current_piece *piece.Piece = nil
 	current_piece_index := int64(0)
-	for _, f := range t.files {
+	for i, f := range t.files {
 		file_bytes_remaining := f.Length
 		f.Start_piece = current_piece_index
 
 		for file_bytes_remaining > 0 {
 			if current_piece == nil {
 				current_piece = piece.NewPiece(current_piece_index, t.pieces_length)
+				current_piece.SetHash([]byte(pieces[i*20:i*20+20]))
 				current_piece_index++
 			}
 
@@ -203,4 +206,7 @@ func (t *Torrent) initPieces() {
 
 		f.End_piece = current_piece_index
 	}
+	
+	t.addPiece(current_piece)
+	current_piece = nil
 }

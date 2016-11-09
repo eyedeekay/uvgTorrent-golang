@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/zeebo/bencode"
 	"github.com/unovongalixor/bitfield-golang"
+	"github.com/zeebo/bencode"
 	"net"
 	"time"
 )
@@ -19,7 +19,9 @@ type Peer struct {
 	ut_metadata        int64
 	metadata_size      int64
 	metadata_requested bool
-	bitfield 		   *bitfield.Bitfield
+	bitfield           *bitfield.Bitfield
+
+	isChoked bool
 }
 
 func NewPeer(ip net.IP, port uint16) *Peer {
@@ -32,12 +34,17 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.metadata_size = 0
 	p.metadata_requested = false
 	p.bitfield = bitfield.NewBitfield(true, 1)
+	p.isChoked = true
 
 	return &p
 }
 
 func (p *Peer) IsConnected() bool {
 	return p.connected
+}
+
+func (p *Peer) IsChoked() bool {
+	return p.isChoked
 }
 
 func (p *Peer) Connect(done chan bool) {
@@ -149,6 +156,8 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 		p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
+			p.connected = false
+			pieces <- false
 			return
 		}
 		length_bytes_read += n
@@ -185,10 +194,12 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 		binary.Read(bytes.NewBuffer(message[0:1]), binary.BigEndian, &msg_id)
 
 		if msg_id == MSG_CHOKE {
-			fmt.Println(p.ip, "MSG_CHOKE")
+			p.isChoked = true
+
 			pieces <- true
 		} else if msg_id == MSG_UNCHOKE {
-			fmt.Println(p.ip, "MSG_UNCHOKE")
+			p.isChoked = false
+
 			request_chunk <- p
 		} else if msg_id == MSG_INTERESTED {
 			fmt.Println(p.ip, "MSG_INTERESTED")
@@ -199,13 +210,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 		} else if msg_id == MSG_HAVE {
 			var have_bit int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
-			//fmt.Println(p.ip, "MSG_HAVE", int(have_bit))
 
 			p.bitfield.SetBit(int(have_bit))
 			pieces <- true
 		} else if msg_id == MSG_BITFIELD {
 			p.bitfield.Copy(message[1:])
-			fmt.Println(p.ip, "MSG_BITFIELD", p.bitfield.Size(), msg_length)
 			pieces <- true
 		} else if msg_id == MSG_REQUEST {
 			fmt.Println(p.ip, "MSG_REQUEST")
@@ -239,6 +248,8 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 				metadata <- message[2:]
 			}
 		}
+	} else {
+		pieces <- false
 	}
 }
 
