@@ -118,13 +118,16 @@ func (t *Torrent) Run() {
 	request_chunk := make(chan *peer.Peer)
 
 	for {
+		loop := 0
+
 		for _, track := range t.Trackers {
 			if track.IsConnected() {
-				go track.Run(metadata, pieces, request_chunk)
+				loop += track.Run(metadata, pieces, request_chunk)
 			}
 		}
 
-		for _, _ = range t.Trackers {
+		for loop > 0 {
+			loop--
 			select {
 
             // torrent got metadata from a peer
