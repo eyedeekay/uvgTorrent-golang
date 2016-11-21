@@ -211,7 +211,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	}
 	binary.Read(bytes.NewBuffer(length_bytes), binary.BigEndian, &msg_length)
 
-	if msg_length > 0 {
+	if msg_length > 0 && msg_length < int32(config.ChunkSize + 16) {
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
 		for int32(message_bytes_read) < msg_length {
