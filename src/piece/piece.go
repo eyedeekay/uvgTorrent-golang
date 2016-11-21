@@ -4,7 +4,6 @@ import (
     "../file"
     "../config"
     "../chunk"
-    "fmt"
 )
 
 type Piece struct {
