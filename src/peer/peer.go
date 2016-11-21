@@ -204,8 +204,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		binary.Read(bytes.NewBuffer(message[0:1]), binary.BigEndian, &msg_id)
 
 		if msg_id == MSG_CHOKE {
+			fmt.Println(p.ip, "MSG_CHOKE")
 			p.isChoked = true
 		} else if msg_id == MSG_UNCHOKE {
+			fmt.Println(p.ip, "MSG_UNCHOKE")
 			p.isChoked = false
 
 			request_chunk <- p

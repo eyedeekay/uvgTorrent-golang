@@ -115,8 +115,8 @@ func (t *Torrent) Run() {
 				}
 
 			// a peer alerts the torrent it is ready to request a chunk
-			case _ = <-request_chunk:
-				fmt.Println("PEER WANTS CHUNK")
+			case p := <-request_chunk:
+				fmt.Println(p.IsChoked(), "PEER WANTS CHUNK")
 			
 			default:
 		}
