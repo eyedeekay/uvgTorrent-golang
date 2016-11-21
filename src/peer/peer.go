@@ -148,7 +148,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	}
 
 	if p.connected {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond) // sleep provides a small window for graceful shutdown
 		go p.Run(hash, metadata, request_chunk)
 	}
 }
@@ -168,7 +168,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	}
 	binary.Read(bytes.NewBuffer(length_bytes), binary.BigEndian, &msg_length)
 
-	if msg_length > 0 && msg_length < 16*1024 {
+	if msg_length > 0 {
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
 		for int32(message_bytes_read) < msg_length {
