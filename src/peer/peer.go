@@ -47,21 +47,19 @@ func (p *Peer) IsChoked() bool {
 	return p.isChoked
 }
 
-func (p *Peer) Connect(done chan bool) {
+func (p *Peer) Connect() {
 	timeOut := time.Duration(1) * time.Second
 
 	var err error
 	p.connection, err = net.DialTimeout("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port), timeOut)
 	if err != nil {
-		done <- false
 		return
 	}
 
 	p.connected = true
-	done <- true
 }
 
-func (p *Peer) Handshake(hash []byte, done chan bool) {
+func (p *Peer) Handshake(hash []byte) {
 	// send regular handshake
 	var pstrlen int8
 	pstrlen = 19
@@ -82,7 +80,6 @@ func (p *Peer) Handshake(hash []byte, done chan bool) {
 	p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 	_, err := p.connection.Read(result)
 	if err != nil {
-		done <- false
 		return
 	}
 
@@ -98,8 +95,6 @@ func (p *Peer) Handshake(hash []byte, done chan bool) {
 	p.connection.Write(buff.Bytes())
 
 	p.SendInterested()
-
-	done <- true
 }
 
 func (p *Peer) SendInterested() {
@@ -146,9 +141,33 @@ func (p *Peer) RequestMetadata() {
 		binary.Write(&buff, binary.BigEndian, []byte(bencoded_message))
 		p.connection.Write(buff.Bytes())
 	}
+
+	fmt.Println(p.ip, "REQUESTMETADATA")
 }
 
-func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chunk chan *Peer) {
+func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) {
+	if p.IsConnected() == false {
+		p.Connect()
+		if p.IsConnected() {
+			p.Handshake(hash)
+			if p.CanRequestMetadata() {
+				p.RequestMetadata()
+			}
+		}
+	}
+
+
+	if p.IsConnected() && p.handshaked {
+		p.HandleMessage(metadata, request_chunk)
+	}
+
+	if p.connected {
+		time.Sleep(50 * time.Millisecond)
+		go p.Run(hash, metadata, request_chunk)
+	}
+}
+
+func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
@@ -157,7 +176,6 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
 			p.connected = false
-			pieces <- false
 			return
 		}
 		length_bytes_read += n
@@ -168,7 +186,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
 		for int32(message_bytes_read) < msg_length {
-			p.connection.SetReadDeadline(time.Now().Add(10 * time.Second))
+			p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
 				return
@@ -195,39 +213,31 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 
 		if msg_id == MSG_CHOKE {
 			p.isChoked = true
-
-			pieces <- true
 		} else if msg_id == MSG_UNCHOKE {
 			p.isChoked = false
 
 			request_chunk <- p
 		} else if msg_id == MSG_INTERESTED {
 			fmt.Println(p.ip, "MSG_INTERESTED")
-			pieces <- true
 		} else if msg_id == MSG_NOT_INTERESTED {
 			fmt.Println(p.ip, "MSG_NOT_INTERESTED")
-			pieces <- true
 		} else if msg_id == MSG_HAVE {
+			fmt.Println(p.ip, "MSG_HAVE")
 			var have_bit int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
 
 			p.bitfield.SetBit(int(have_bit))
-			pieces <- true
 		} else if msg_id == MSG_BITFIELD {
+			fmt.Println(p.ip, "MSG_BITFIELD")
 			p.bitfield.Copy(message[1:])
-			pieces <- true
 		} else if msg_id == MSG_REQUEST {
 			fmt.Println(p.ip, "MSG_REQUEST")
-			pieces <- true
 		} else if msg_id == MSG_PIECE {
 			fmt.Println(p.ip, "MSG_PIECE")
-			pieces <- true
 		} else if msg_id == MSG_CANCEL {
 			fmt.Println(p.ip, "MSG_CANCEL")
-			pieces <- true
 		} else if msg_id == MSG_PORT {
 			fmt.Println(p.ip, "MSG_PORT")
-			pieces <- true
 		} else if msg_id == MSG_METADATA {
 			//fmt.Println(p.ip, "MSG_METADATA")
 			var handshake_id int8
@@ -243,13 +253,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, pieces chan bool, request_chu
 					m := torrent["m"].(map[string]interface{})
 					p.ut_metadata = m["ut_metadata"].(int64)
 				}
-				pieces <- true
 			} else if handshake_id == 1 {
 				metadata <- message[2:]
 			}
 		}
-	} else {
-		pieces <- false
 	}
 }
 

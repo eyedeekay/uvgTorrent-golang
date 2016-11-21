@@ -98,37 +98,18 @@ func (t *Torrent) AnnounceTrackers() {
 	fmt.Println("announce finished")
 }
 
-func (t *Torrent) Start() {
-	tracker_status := make(chan bool)
+func (t *Torrent) Run() {
+	metadata := make(chan []byte)
+	request_chunk := make(chan *peer.Peer)
 
 	for _, track := range t.Trackers {
 		if track.IsConnected() {
-			go track.Start(t.Hash, tracker_status)
+			track.Run(t.Hash, metadata, request_chunk)
 		}
 	}
-
-	for i := 0; i < t.connected_trackers; i++ {
-		<-tracker_status
-	}
-}
-
-func (t *Torrent) Run() {
-	metadata := make(chan []byte)
-	pieces := make(chan bool)
-	request_chunk := make(chan *peer.Peer)
 
 	for {
-		loop := 0
-
-		for _, track := range t.Trackers {
-			if track.IsConnected() {
-				loop += track.Run(metadata, pieces, request_chunk)
-			}
-		}
-
-		for loop > 0 {
-			loop--
-			select {
+		select {
 
             // torrent got metadata from a peer
 			case data := <-metadata:
@@ -157,13 +138,11 @@ func (t *Torrent) Run() {
 					t.initPieces([]byte(t.metadata["pieces"].(string)))
 				}
 
-            // torrent got a chunk from a peer
-			case <-pieces:
-
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
 				t.peers_requesting = append(t.peers_requesting, p)
-			}
+			
+			default:
 		}
 	}
 }

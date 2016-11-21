@@ -174,44 +174,10 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
 	}
 }
 
-func (t *Tracker) Start(hash []byte, done chan bool) {
-	connect_status := make(chan bool)
+func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *peer.Peer) {
 	for _, p := range t.peers {
-		go p.Connect(connect_status)
+		go p.Run(hash, metadata, request_chunk)
 	}
-
-	for i := 0; i < len(t.peers); i++ {
-		<-connect_status
-	}
-
-	handshake_status := make(chan bool)
-	connected_peer_count := 0
-	for _, p := range t.peers {
-		if p.IsConnected() {
-			connected_peer_count++
-			go p.Handshake(hash, handshake_status)
-		}
-	}
-
-	for i := 0; i < connected_peer_count; i++ {
-		<-handshake_status
-	}
-
-	done <- true
-}
-
-func (t *Tracker) Run(metadata chan []byte, pieces chan bool, request_chunk chan *peer.Peer) int {
-	connected_peers := 0
-	for _, p := range t.peers {
-		if p.IsConnected() {
-			connected_peers++
-			if p.CanRequestMetadata() {
-				go p.RequestMetadata()
-			}
-			go p.HandleMessage(metadata, pieces, request_chunk)
-		}
-	}
-	return connected_peers
 }
 
 func (t *Tracker) Close() {

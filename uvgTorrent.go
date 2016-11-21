@@ -26,8 +26,6 @@ func main() {
 	t.ConnectTrackers()
 	t.AnnounceTrackers()
 
-	t.Start() // establish connections with peers
-
 	t.Run() // loop through peers forever handling messages
 }
 
