@@ -192,4 +192,6 @@ func (t *Torrent) initPieces(pieces []byte) {
 	
 	t.addPiece(current_piece)
 	current_piece = nil
+
+	fmt.Println("PIECES")
 }

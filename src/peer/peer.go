@@ -121,16 +121,6 @@ func (p *Peer) RequestMetadata() {
 	metadata_piece_size := int64(16 * 1024)
 	num_pieces := p.metadata_size / metadata_piece_size
 
-	// peer that requests metadata is thrown away
-	// so discard any bitfield or has messages sent by the client
-	// following the handshake
-	result := make([]byte, 2048)
-	p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
-	_, err := p.connection.Read(result)
-	if err != nil {
-		return
-	}
-
 	for i := int64(0); i <= num_pieces; i++ {
 		bencoded_message := fmt.Sprintf("d8:msg_typei0e5:piecei%dee", i)
 
@@ -150,12 +140,8 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		p.Connect()
 		if p.IsConnected() {
 			p.Handshake(hash)
-			if p.CanRequestMetadata() {
-				p.RequestMetadata()
-			}
 		}
 	}
-
 
 	if p.IsConnected() && p.handshaked {
 		p.HandleMessage(metadata, request_chunk)
@@ -239,7 +225,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		} else if msg_id == MSG_PORT {
 			fmt.Println(p.ip, "MSG_PORT")
 		} else if msg_id == MSG_METADATA {
-			//fmt.Println(p.ip, "MSG_METADATA")
+			fmt.Println(p.ip, "MSG_METADATA")
 			var handshake_id int8
 			binary.Read(bytes.NewBuffer(message[1:2]), binary.BigEndian, &handshake_id)
 
@@ -252,6 +238,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 					p.metadata_size = torrent["metadata_size"].(int64)
 					m := torrent["m"].(map[string]interface{})
 					p.ut_metadata = m["ut_metadata"].(int64)
+				}
+
+				if p.CanRequestMetadata() {
+					p.RequestMetadata()
 				}
 			} else if handshake_id == 1 {
 				metadata <- message[2:]
