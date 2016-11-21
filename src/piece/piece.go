@@ -2,7 +2,8 @@ package piece
 
 import (
     "../file"
-    "config"
+    "../config"
+    "../chunk"
     "fmt"
 )
 
@@ -12,6 +13,7 @@ type Piece struct {
 	length          int64
 	boundaries      map[*file.File]*Boundary
 	hash            []byte
+    chunks          []*chunk.Chunk
 }
 
 type Boundary struct {
@@ -39,7 +41,20 @@ func (p *Piece) InitChunks(){
     number_of_chunks := p.length / chunk_size
     last_chunk_size := p.length % chunk_size
 
-    fmt.Println(number_of_chunks, p.length, last_chunk_size)
+    for c := int64(0); c < number_of_chunks; c++ {
+        var ch *chunk.Chunk
+        if c != number_of_chunks {
+            ch = chunk.NewChunk(c, p.index, chunk_size)
+        } else {
+            ch = chunk.NewChunk(c, p.index, last_chunk_size)
+        }
+
+        p.AddChunk(ch)
+    }
+}
+
+func (p *Piece) AddChunk(ch *chunk.Chunk){
+    p.chunks = append(p.chunks, ch)
 }
 
 func (p *Piece) SetHash(hash []byte) {
