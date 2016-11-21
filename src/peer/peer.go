@@ -8,6 +8,7 @@ import (
 	"github.com/zeebo/bencode"
 	"net"
 	"time"
+	"config"
 )
 
 type Peer struct {
@@ -19,6 +20,7 @@ type Peer struct {
 	ut_metadata        int64
 	metadata_size      int64
 	metadata_requested bool
+	metadata 		   []byte
 	bitfield           *bitfield.Bitfield
 
 	isChoked bool
@@ -118,8 +120,10 @@ func (p *Peer) CanRequestMetadata() bool {
 }
 
 func (p *Peer) RequestMetadata() {
-	metadata_piece_size := int64(16 * 1024)
+	metadata_piece_size := int64(config.ChunkSize)
 	num_pieces := p.metadata_size / metadata_piece_size
+
+	p.metadata = make([]byte, p.metadata_size)
 
 	for i := int64(0); i <= num_pieces; i++ {
 		bencoded_message := fmt.Sprintf("d8:msg_typei0e5:piecei%dee", i)

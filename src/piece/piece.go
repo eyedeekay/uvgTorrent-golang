@@ -2,6 +2,7 @@ package piece
 
 import (
     "../file"
+    "config"
     "fmt"
 )
 
@@ -34,7 +35,7 @@ func NewPiece(index int64, length int64) *Piece {
 func (p *Piece) InitChunks(){
     p.length = p.length - p.bytes_remaining
 
-    chunk_size := int64(1024*16)
+    chunk_size := int64(config.ChunkSize)
     number_of_chunks := p.length / chunk_size
     last_chunk_size := p.length % chunk_size
 

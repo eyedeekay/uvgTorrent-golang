@@ -19,13 +19,10 @@ type Torrent struct {
 	connected_trackers int
 	metadata           map[string]interface{}
 
-	pieces_count	   int64
 	pieces_length	   int64
 	files			   []*file.File
 	pieces			   []*piece.Piece
 	total_length	   int64
-
-	peers_requesting   []*peer.Peer
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -139,8 +136,8 @@ func (t *Torrent) Run() {
 				}
 
 			// a peer alerts the torrent it is ready to request a chunk
-			case p := <-request_chunk:
-				t.peers_requesting = append(t.peers_requesting, p)
+			case _ = <-request_chunk:
+				
 			
 			default:
 		}
