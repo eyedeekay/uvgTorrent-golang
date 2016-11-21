@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 	"config"
+	"strings"
 )
 
 type Peer struct {
@@ -20,6 +21,7 @@ type Peer struct {
 	ut_metadata        int64
 	metadata_size      int64
 	metadata_requested bool
+	metadata_chunks_received int64
 	metadata 		   []byte
 	bitfield           *bitfield.Bitfield
 
@@ -34,6 +36,7 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.handshaked = false
 	p.ut_metadata = 0
 	p.metadata_size = 0
+	p.metadata_chunks_received = 0
 	p.metadata_requested = false
 	p.bitfield = bitfield.NewBitfield(true, 1)
 	p.isChoked = true
@@ -247,7 +250,22 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 					p.RequestMetadata()
 				}
 			} else if handshake_id == 1 {
-				metadata <- message[2:]
+				var md map[string]interface{}
+				message = message[2:]
+				if err := bencode.DecodeBytes(message, &md); err != nil {
+					panic(err)
+				}
+
+				metadata_piece_size := int64(config.ChunkSize)
+				md_pos := strings.Index(string(message), "ee") + len("ee")
+				copy(p.metadata[p.metadata_chunks_received:], message[md_pos:])
+
+				metadata_pieces := p.metadata_size / metadata_piece_size + 1
+				p.metadata_chunks_received++
+
+				if p.metadata_chunks_received == metadata_pieces {
+					metadata <- p.metadata
+				}
 			}
 		}
 	}

@@ -111,28 +111,7 @@ func (t *Torrent) Run() {
             // torrent got metadata from a peer
 			case data := <-metadata:
 				if t.metadata == nil {
-					dict_pos := strings.Index(string(data), "ee") + len("ee")
-					if err := bencode.DecodeBytes(data[dict_pos:], &t.metadata); err != nil {
-						panic(err)
-					}
-					t.pieces_length = t.metadata["piece length"].(int64)
-
-					for _, f := range t.metadata["files"].([]interface{}) {
-						m := f.(map[string]interface{})
-
-						length := m["length"].(int64)
-						p := m["path"].([]interface{})
-
-						path := make([]string, len(p)-1)
-						for _, path_seq := range p {
-							var str string = fmt.Sprintf("%v", path_seq)
-							path = append(path, str)
-						}
-
-						t.addFile(file.NewFile(length, path))
-					}
-
-					t.initPieces([]byte(t.metadata["pieces"].(string)))
+					t.ParseMetadata(data)
 				}
 
 			// a peer alerts the torrent it is ready to request a chunk
@@ -142,6 +121,30 @@ func (t *Torrent) Run() {
 			default:
 		}
 	}
+}
+
+func (t *Torrent) ParseMetadata(data []byte) {
+	if err := bencode.DecodeBytes(data, &t.metadata); err != nil {
+		panic(err)
+	}
+	t.pieces_length = t.metadata["piece length"].(int64)
+
+	for _, f := range t.metadata["files"].([]interface{}) {
+		m := f.(map[string]interface{})
+
+		length := m["length"].(int64)
+		p := m["path"].([]interface{})
+
+		path := make([]string, len(p)-1)
+		for _, path_seq := range p {
+			var str string = fmt.Sprintf("%v", path_seq)
+			path = append(path, str)
+		}
+
+		t.addFile(file.NewFile(length, path))
+	}
+
+	t.initPieces([]byte(t.metadata["pieces"].(string)))
 }
 
 func (t *Torrent) Close() {
