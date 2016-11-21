@@ -7,9 +7,12 @@ import (
 	"github.com/unovongalixor/bitfield-golang"
 	"github.com/zeebo/bencode"
 	"net"
+	"io"
 	"time"
 	"config"
 	"strings"
+	"../chunk"
+	"../piece"
 )
 
 type Peer struct {
@@ -24,6 +27,9 @@ type Peer struct {
 	metadata_chunks_received int64
 	metadata 		   []byte
 	bitfield           *bitfield.Bitfield
+
+	chunk_chan		   chan *chunk.Chunk
+	chunk 			   *chunk.Chunk
 
 	isChoked bool
 }
@@ -40,6 +46,7 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.metadata_requested = false
 	p.bitfield = bitfield.NewBitfield(true, 1)
 	p.isChoked = true
+	p.chunk_chan = make(chan *chunk.Chunk)
 
 	return &p
 }
@@ -63,6 +70,24 @@ func (p *Peer) Connect() {
 
 	p.connected = true
 }
+
+func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
+	if p.IsChoked() == false {
+		for i, pi := range pieces {
+			// if peer has piece
+
+			if p.bitfield.GetBit(i) {
+				ch := pi.GetNextChunk()
+
+				if ch != nil {
+					p.chunk_chan <- ch
+					return 
+				}
+			}
+		}
+	}
+}
+
 
 func (p *Peer) Handshake(hash []byte) {
 	// send regular handshake
@@ -150,12 +175,23 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 
 	if p.IsConnected() && p.handshaked {
 		p.HandleMessage(metadata, request_chunk)
+
+		if p.chunk != nil {
+			p.RequestPiece(request_chunk)
+		}
 	}
 
 	if p.connected {
 		time.Sleep(5 * time.Millisecond) // sleep provides a small window for graceful shutdown
 		go p.Run(hash, metadata, request_chunk)
 	}
+}
+
+func (p *Peer) RequestPiece(request_chunk chan *Peer) {
+	fmt.Println(p.ip, "REQ PIECE")
+	request_chunk <- p
+	p.chunk = <- p.chunk_chan
+	fmt.Println(p.ip, "GOT PIECE")
 }
 
 func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
@@ -166,7 +202,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
-			p.Close()
+			if err == io.EOF {
+				p.Close()
+			}
 			return
 		}
 		length_bytes_read += n
@@ -180,7 +218,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
-				p.Close()
+				if err == io.EOF {
+					p.Close()
+				}
 				return
 			}
 			message_bytes_read += n
@@ -209,8 +249,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		} else if msg_id == MSG_UNCHOKE {
 			fmt.Println(p.ip, "MSG_UNCHOKE")
 			p.isChoked = false
-
-			request_chunk <- p
+			p.RequestPiece(request_chunk)
 		} else if msg_id == MSG_INTERESTED {
 			fmt.Println(p.ip, "MSG_INTERESTED")
 		} else if msg_id == MSG_NOT_INTERESTED {

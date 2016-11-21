@@ -89,3 +89,14 @@ func (p *Piece) AddBoundary(f *file.File, bytes_remaining int64) int64 {
 
 	return bytes_remaining
 }
+
+func (p *Piece) GetNextChunk() *chunk.Chunk {
+    for _, ch := range p.chunks {
+        if ch.GetStatus() == chunk.ChunkStatusReady {
+            ch.SetStatus(chunk.ChunkStatusInProgress)
+            return ch
+        }
+    }
+
+    return nil
+}
