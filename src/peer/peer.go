@@ -131,8 +131,6 @@ func (p *Peer) RequestMetadata() {
 		binary.Write(&buff, binary.BigEndian, []byte(bencoded_message))
 		p.connection.Write(buff.Bytes())
 	}
-
-	fmt.Println(p.ip, "REQUESTMETADATA")
 }
 
 func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) {
@@ -148,7 +146,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	}
 
 	if p.connected {
-		time.Sleep(50 * time.Millisecond) // sleep provides a small window for graceful shutdown
+		time.Sleep(5 * time.Millisecond) // sleep provides a small window for graceful shutdown
 		go p.Run(hash, metadata, request_chunk)
 	}
 }
@@ -161,7 +159,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
-			p.connected = false
+			p.Close()
 			return
 		}
 		length_bytes_read += n
@@ -175,6 +173,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
+				p.Close()
 				return
 			}
 			message_bytes_read += n
@@ -251,5 +250,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 }
 
 func (p *Peer) Close() {
+	p.connected = false
+	p.handshaked = false
+	p.ut_metadata = 0 
+	p.metadata_size = 0 
+	p.metadata_requested = false
 	p.connection.Close()
 }

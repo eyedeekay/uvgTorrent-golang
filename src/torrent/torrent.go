@@ -104,7 +104,7 @@ func (t *Torrent) Run() {
 
 	for _, track := range t.Trackers {
 		if track.IsConnected() {
-			track.Run(t.Hash, metadata, request_chunk)
+			go track.Run(t.Hash, metadata, request_chunk)
 		}
 	}
 
