@@ -34,17 +34,17 @@ func NewChunk(index int64, piece_index int64, length int64) *Chunk {
 }
 
 func (ch *Chunk) GetStatus() int {
-    ch.status_lock.Lock()
+    //ch.status_lock.Lock()
     status := ch.status
-    ch.status_lock.Unlock()
+    //ch.status_lock.Unlock()
 
     return status
 }
 
 func (ch *Chunk) SetStatus(status int) {
-    ch.status_lock.Lock()
+    //ch.status_lock.Lock()
     ch.status = status
-    ch.status_lock.Unlock()
+    //ch.status_lock.Unlock()
 }
 
 func (ch *Chunk) GetData() []byte {

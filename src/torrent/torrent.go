@@ -96,8 +96,8 @@ func (t *Torrent) AnnounceTrackers() {
 }
 
 func (t *Torrent) Run() {
-	metadata := make(chan []byte)
-	request_chunk := make(chan *peer.Peer)
+	metadata := make(chan []byte, 500)
+	request_chunk := make(chan *peer.Peer, 500)
 
 	for _, track := range t.Trackers {
 		if track.IsConnected() {
