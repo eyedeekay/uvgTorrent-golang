@@ -143,8 +143,9 @@ func (t *Torrent) ParseMetadata(data []byte) {
 		length := m["length"].(int64)
 		p := m["path"].([]interface{})
 
-		path := make([]string, len(p))
+		path := make([]string, 0)
 		path = append(path, "downloads")
+		path = append(path, t.Name)
 		for _, path_seq := range p {
 			var str string = fmt.Sprintf("%v", path_seq)
 			path = append(path, str)

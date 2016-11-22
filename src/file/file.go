@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"path/filepath"
 )
 
 type File struct {
@@ -33,9 +34,11 @@ func (f *File) GetPath() []string {
 func (f *File) Write(data []byte, pos int64) {
 	if f.file_handle == nil {
 		// create folders if needed
+		path := f.GetPath()
+		file_path := fmt.Sprintf("%s", strings.Join(path, "/"))
+		folder_path := fmt.Sprintf("%s", strings.Join(path[0:len(path)-1], "/"))
+		os.MkdirAll(filepath.Join(folder_path), os.ModePerm)
 
-		file_path := fmt.Sprintf("./%s", strings.Join(f.GetPath(), "/"))
-		fmt.Println(file_path)
 		fh, err := os.OpenFile(
 			file_path,
 			os.O_WRONLY|os.O_SYNC|os.O_CREATE,

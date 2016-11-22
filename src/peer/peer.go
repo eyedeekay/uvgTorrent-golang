@@ -10,6 +10,7 @@ import (
 	"github.com/unovongalixor/bitfield-golang"
 	"github.com/zeebo/bencode"
 	"net"
+	"io"
 	"strings"
 	"time"
 )
@@ -234,7 +235,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
-			p.Close()
+			if err == io.EOF {
+				p.Close()
+			}
 
 			return
 		}
@@ -248,7 +251,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		for int32(message_bytes_read) < msg_length {
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
-				p.Close()
+				if err == io.EOF {
+					p.Close()
+				}
 
 				return
 			}
