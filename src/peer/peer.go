@@ -45,11 +45,9 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.metadata_size = 0
 	p.metadata_chunks_received = 0
 	p.metadata_requested = false
-	p.Metadata_loaded = false
 	p.bitfield = bitfield.NewBitfield(true, 1)
 	p.isChoked = true
 	p.chunk_chan = make(chan *chunk.Chunk, 1)
-	p.should_req_chunk = false
 
 	return &p
 }
@@ -285,7 +283,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 				fmt.Println(p.ip, "MSG_UNCHOKE")
 			}
 			p.isChoked = false
-			if p.Metadata_loaded {
+			if p.MetadataLoaded() {
 				p.GetChunkFromTorrent(request_chunk)
 			}
 		} else if msg_id == MSG_INTERESTED {
