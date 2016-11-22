@@ -212,7 +212,12 @@ func (t *Torrent) initPieces(pieces []byte) {
 	current_piece_index := int64(-1)
 	for _, f := range t.files {
 		file_bytes_remaining := f.Length
-		f.Start_piece = current_piece_index
+		if current_piece == nil {
+			f.Start_piece = 0
+		} else {
+			f.Start_piece = current_piece_index
+		}
+		
 
 		for file_bytes_remaining > 0 {
 			if current_piece == nil {
