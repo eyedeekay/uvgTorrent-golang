@@ -116,7 +116,7 @@ func (t *Torrent) Run() {
 
 		// a peer alerts the torrent it is ready to request a chunk
 		case p := <-request_chunk:
-			if len(t.pieces) > 0 {
+			/*if len(t.pieces) > 0 {
 				for i, p := range t.pieces {
 					completed, total, success := p.ChunksCount()
 
@@ -124,7 +124,7 @@ func (t *Torrent) Run() {
 						fmt.Println(i, "completed, total", completed, total, success)
 					}
 				}
-			}
+			}*/
 
 			p.ClaimChunk(t.pieces)
 		}

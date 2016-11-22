@@ -278,42 +278,23 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		binary.Read(bytes.NewBuffer(message[0:1]), binary.BigEndian, &msg_id)
 
 		if msg_id == MSG_CHOKE {
-			if p.chunk != nil {
-				fmt.Println(p.ip, "MSG_CHOKE")
-			}
 			p.isChoked = true
 		} else if msg_id == MSG_UNCHOKE {
-			if p.chunk != nil {
-				fmt.Println(p.ip, "MSG_UNCHOKE")
-			}
 			p.isChoked = false
 			if p.MetadataLoaded() {
 				p.GetChunkFromTorrent(request_chunk)
 			}
 		} else if msg_id == MSG_INTERESTED {
-			if p.chunk != nil {
-				fmt.Println(p.ip, "MSG_INTERESTED")
-			}
 		} else if msg_id == MSG_NOT_INTERESTED {
-			if p.chunk != nil {
-				fmt.Println(p.ip, "MSG_INTERESTED")
-			}
 		} else if msg_id == MSG_HAVE {
-			//fmt.Println(p.ip, "MSG_HAVE")
-			if p.chunk != nil {
-				fmt.Println(p.ip, "MSG_HAVE")
-			}
 			var have_bit int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
 
 			p.bitfield.SetBit(int(have_bit))
 		} else if msg_id == MSG_BITFIELD {
-			//fmt.Println(p.ip, "MSG_BITFIELD")
 			p.bitfield.Copy(message[1:])
 		} else if msg_id == MSG_REQUEST {
-			//fmt.Println(p.ip, "MSG_REQUEST")
 		} else if msg_id == MSG_PIECE {
-			//fmt.Println(p.ip, "MSG_PIECE")
 			var piece_index int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &piece_index)
 			if len(message) > 9 {
@@ -326,11 +307,8 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 				}
 			}
 		} else if msg_id == MSG_CANCEL {
-			//fmt.Println(p.ip, "MSG_CANCEL")
 		} else if msg_id == MSG_PORT {
-			//fmt.Println(p.ip, "MSG_PORT")
 		} else if msg_id == MSG_METADATA {
-			//fmt.Println(p.ip, "MSG_METADATA")
 			var handshake_id int8
 			binary.Read(bytes.NewBuffer(message[1:2]), binary.BigEndian, &handshake_id)
 
