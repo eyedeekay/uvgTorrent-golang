@@ -334,8 +334,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 					panic(err)
 				}
 
+				metadata_piece_size := int64(config.ChunkSize)
 				md_pos := strings.Index(string(message), "ee") + len("ee")
-				copy(p.metadata[p.metadata_chunks_received:], message[md_pos:])
+				copy(p.metadata[p.metadata_chunks_received*metadata_piece_size:], message[md_pos:])
 
 				p.metadata_chunks_received++
 
