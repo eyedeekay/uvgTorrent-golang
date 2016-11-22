@@ -143,7 +143,8 @@ func (t *Torrent) ParseMetadata(data []byte) {
 		length := m["length"].(int64)
 		p := m["path"].([]interface{})
 
-		path := make([]string, len(p)-1)
+		path := make([]string, len(p))
+		path = append(path, "downloads")
 		for _, path_seq := range p {
 			var str string = fmt.Sprintf("%v", path_seq)
 			path = append(path, str)
@@ -160,6 +161,10 @@ func (t *Torrent) Close() {
 		if track.IsConnected() {
 			track.Close()
 		}
+	}
+
+	for _, f := range t.files {
+		f.Close()
 	}
 }
 
@@ -200,6 +205,4 @@ func (t *Torrent) initPieces(pieces []byte) {
 	
 	t.addPiece(current_piece)
 	current_piece = nil
-
-	fmt.Println("PIECES")
 }
