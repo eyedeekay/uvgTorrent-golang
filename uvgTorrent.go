@@ -30,6 +30,11 @@ func main() {
 }
 
 func cleanup(t *torrent.Torrent) {
+	fmt.Println()
 	fmt.Println("cleaning up")
+
+	// torrent close will tell the trackers to close all of the peers connections
+	// causing the peers to gracefully exit
+	// it will also close any open file handles
 	t.Close()
 }
