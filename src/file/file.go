@@ -16,3 +16,7 @@ func NewFile(length int64, path []string) *File {
     
     return &f
 }
+
+func (f *File) GetPath() []string {
+    return f.path
+}

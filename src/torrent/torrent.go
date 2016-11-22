@@ -116,6 +116,16 @@ func (t *Torrent) Run() {
 
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
+				if len(t.pieces) > 0 {
+					for i, p := range t.pieces {
+						completed, total, success := p.ChunksCount()
+
+						if completed > 0 {
+							fmt.Println(i, "completed, total", completed, total, success)
+						}
+					}
+				}
+
 				p.ClaimChunk(t.pieces)
 		}
 	}
@@ -166,14 +176,14 @@ func (t *Torrent) addPiece(p *piece.Piece) {
 func (t *Torrent) initPieces(pieces []byte) {
 	var current_piece *piece.Piece = nil
 	current_piece_index := int64(0)
-	for i, f := range t.files {
+	for _, f := range t.files {
 		file_bytes_remaining := f.Length
 		f.Start_piece = current_piece_index
 
 		for file_bytes_remaining > 0 {
 			if current_piece == nil {
 				current_piece = piece.NewPiece(current_piece_index, t.pieces_length)
-				current_piece.SetHash([]byte(pieces[i*20:i*20+20]))
+				current_piece.SetHash([]byte(pieces[current_piece_index*20:current_piece_index*20+20]))
 				current_piece_index++
 			}
 

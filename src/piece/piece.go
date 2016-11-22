@@ -2,10 +2,14 @@ package piece
 
 import (
     "../file"
-    "../config"
     "../chunk"
+    "config"
+    "fmt"
+    "os"
+    "strings"
+    "log"
+    "crypto/sha1"
 )
-
 type Piece struct {
 	index           int64
 	bytes_remaining int64
@@ -13,6 +17,7 @@ type Piece struct {
 	boundaries      map[*file.File]*Boundary
 	hash            []byte
     chunks          []*chunk.Chunk
+    valid           bool
 }
 
 type Boundary struct {
@@ -99,4 +104,94 @@ func (p *Piece) GetNextChunk() *chunk.Chunk {
     }
 
     return nil
+}
+
+func (p *Piece) ChunksCount() (int, int, bool) {
+    total_chunks := len(p.chunks)
+    completed_chunks := 0
+
+    for _, ch := range p.chunks {
+        if ch.GetStatus() == chunk.ChunkStatusDone {
+            completed_chunks++
+        }
+    }
+
+    success := false
+
+    if completed_chunks == total_chunks {
+        success = p.Verify()
+    }
+
+    return completed_chunks, total_chunks, success
+}
+
+func (p *Piece) Verify() bool {
+    if p.valid == false {
+        total_len := int64(0)
+
+        for _, ch := range p.chunks {
+            total_len += ch.GetLength()
+        }
+
+        data := make([]byte, total_len)
+        index := 0
+        for _, ch := range p.chunks {
+            length := int(ch.GetLength())
+            copy(data[index:index+length], ch.GetData())
+            index += length
+        }
+
+        h := sha1.New()
+        h.Write(data)
+        hash := h.Sum(nil)
+
+        fmt.Println(hash)
+        fmt.Println(p.hash)
+        if string(hash) == string(p.hash) {
+            p.valid = true
+            p.Write(data)
+        } else {
+            for _, ch := range p.chunks {
+                ch.SetStatus(chunk.ChunkStatusReady)
+            }
+        }
+    }
+
+    return p.valid
+}
+
+func (p *Piece) Write(data []byte) {
+    fmt.Println(p.boundaries)
+
+    for f, b := range p.boundaries {
+        fmt.Println(f)
+        fmt.Println(b)
+
+        file_path := fmt.Sprintf("downloads/%s", strings.Join(f.GetPath(), "/"))
+        fmt.Println(file_path)
+        file, err := os.OpenFile(
+            file_path,
+            os.O_WRONLY|os.O_SYNC|os.O_CREATE,
+            0666,
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer file.Close()
+
+        var whence int = 0
+        _, err = file.Seek(b.File_start, whence)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+
+        // Write bytes to file
+        _, err = file.Write(data[b.Piece_start:b.Piece_end])
+        if err != nil {
+            log.Fatal(err)
+        }
+
+    }
+
 }
