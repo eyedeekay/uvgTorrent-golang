@@ -9,11 +9,12 @@ import (
 )
 
 type File struct {
-	Length      int64
-	Start_piece int64
-	End_piece   int64
-	path        []string
-	file_handle *os.File
+	Length       int64
+	Start_piece  int64
+	End_piece    int64
+	path         []string
+	file_handle  *os.File
+	downloadable bool
 }
 
 func NewFile(length int64, path []string) *File {
@@ -23,8 +24,17 @@ func NewFile(length int64, path []string) *File {
 	f.End_piece = 0
 	f.path = path
 	f.file_handle = nil
+	f.downloadable = false
 
 	return &f
+}
+
+func (f *File) SetDownloadable(downloadable bool) {
+	f.downloadable = downloadable
+}
+
+func (f *File) GetDownloadable() bool {
+	return f.downloadable
 }
 
 func (f *File) GetPath() []string {
@@ -32,6 +42,10 @@ func (f *File) GetPath() []string {
 }
 
 func (f *File) Write(data []byte, pos int64) {
+	if f.GetDownloadable() == false {
+		return
+	}
+	
 	if f.file_handle == nil {
 		// create folders if needed
 		path := f.GetPath()

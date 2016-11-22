@@ -15,6 +15,7 @@ type Piece struct {
 	hash            []byte
 	chunks          []*chunk.Chunk
 	valid           bool
+	downloadable	bool
 }
 
 type Boundary struct {
@@ -29,6 +30,7 @@ func NewPiece(index int64, length int64) *Piece {
 	p.index = index
 	p.length = length
 	p.bytes_remaining = p.length
+	p.downloadable = false
 
 	p.boundaries = make(map[*file.File]*Boundary)
 
@@ -60,6 +62,14 @@ func (p *Piece) AddChunk(ch *chunk.Chunk) {
 
 func (p *Piece) SetHash(hash []byte) {
 	p.hash = hash
+}
+
+func (p *Piece) SetDownloadable(downloadable bool) {
+	p.downloadable = downloadable
+}
+
+func (p *Piece) GetDownloadable() bool {
+	return p.downloadable
 }
 
 func (p *Piece) GetHash() []byte {

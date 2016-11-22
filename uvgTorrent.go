@@ -16,7 +16,7 @@ func main() {
 	go func() {
 		<-c
 		cleanup(t)
-		os.Exit(1)
+		os.Exit(0)
 	}()
 
 	fmt.Println(t.Name)

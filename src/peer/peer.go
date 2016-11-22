@@ -195,13 +195,14 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 	if p.IsChoked() == false {
 		for i, pi := range pieces {
 			// if peer has piece
+			if pi.GetDownloadable() == true {
+				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
+					ch := pi.GetNextChunk()
 
-			if p.bitfield.GetBit(i) {
-				ch := pi.GetNextChunk()
-
-				if ch != nil {
-					p.chunk_chan <- ch
-					return
+					if ch != nil {
+						p.chunk_chan <- ch
+						return
+					}
 				}
 			}
 		}
