@@ -1,10 +1,10 @@
 package torrent
 
 import (
-	"../tracker"
 	"../file"
-	"../piece"
 	"../peer"
+	"../piece"
+	"../tracker"
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
@@ -18,11 +18,11 @@ type Torrent struct {
 	Trackers           []*tracker.Tracker
 	connected_trackers int
 	metadata           map[string]interface{}
-
-	pieces_length	   int64
-	files			   []*file.File
-	pieces			   []*piece.Piece
-	total_length	   int64
+	pieces_length 	   int64
+	total_length  	   int64
+	
+	files         	   []*file.File
+	pieces        	   []*piece.Piece
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -108,25 +108,25 @@ func (t *Torrent) Run() {
 	for {
 		select {
 
-            // torrent got metadata from a peer
-			case data := <-metadata:
-				if t.metadata == nil {
-					t.ParseMetadata(data)
-				}
+		// torrent got metadata from a peer
+		case data := <-metadata:
+			if t.metadata == nil {
+				t.ParseMetadata(data)
+			}
 
-			// a peer alerts the torrent it is ready to request a chunk
-			case p := <-request_chunk:
-				if len(t.pieces) > 0 {
-					for i, p := range t.pieces {
-						completed, total, success := p.ChunksCount()
+		// a peer alerts the torrent it is ready to request a chunk
+		case p := <-request_chunk:
+			if len(t.pieces) > 0 {
+				for i, p := range t.pieces {
+					completed, total, success := p.ChunksCount()
 
-						if completed > 0 {
-							fmt.Println(i, "completed, total", completed, total, success)
-						}
+					if completed > 0 {
+						fmt.Println(i, "completed, total", completed, total, success)
 					}
 				}
+			}
 
-				p.ClaimChunk(t.pieces)
+			p.ClaimChunk(t.pieces)
 		}
 	}
 }
@@ -188,7 +188,7 @@ func (t *Torrent) initPieces(pieces []byte) {
 		for file_bytes_remaining > 0 {
 			if current_piece == nil {
 				current_piece = piece.NewPiece(current_piece_index, t.pieces_length)
-				current_piece.SetHash([]byte(pieces[current_piece_index*20:current_piece_index*20+20]))
+				current_piece.SetHash([]byte(pieces[current_piece_index*20 : current_piece_index*20+20]))
 				current_piece_index++
 			}
 
@@ -202,7 +202,7 @@ func (t *Torrent) initPieces(pieces []byte) {
 
 		f.End_piece = current_piece_index
 	}
-	
+
 	t.addPiece(current_piece)
 	current_piece = nil
 }

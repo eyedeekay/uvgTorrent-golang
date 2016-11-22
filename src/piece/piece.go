@@ -1,19 +1,20 @@
 package piece
 
 import (
-    "../file"
-    "../chunk"
-    "config"
-    "crypto/sha1"
+	"../chunk"
+	"../file"
+	"config"
+	"crypto/sha1"
 )
+
 type Piece struct {
 	index           int64
 	bytes_remaining int64
 	length          int64
 	boundaries      map[*file.File]*Boundary
 	hash            []byte
-    chunks          []*chunk.Chunk
-    valid           bool
+	chunks          []*chunk.Chunk
+	valid           bool
 }
 
 type Boundary struct {
@@ -34,35 +35,35 @@ func NewPiece(index int64, length int64) *Piece {
 	return &p
 }
 
-func (p *Piece) InitChunks(){
-    p.length = p.length - p.bytes_remaining
+func (p *Piece) InitChunks() {
+	p.length = p.length - p.bytes_remaining
 
-    chunk_size := int64(config.ChunkSize)
-    number_of_chunks := p.length / chunk_size
-    last_chunk_size := p.length % chunk_size
+	chunk_size := int64(config.ChunkSize)
+	number_of_chunks := p.length / chunk_size
+	last_chunk_size := p.length % chunk_size
 
-    for c := int64(0); c < number_of_chunks; c++ {
-        var ch *chunk.Chunk
-        if c != number_of_chunks {
-            ch = chunk.NewChunk(c, p.index, chunk_size)
-        } else {
-            ch = chunk.NewChunk(c, p.index, last_chunk_size)
-        }
+	for c := int64(0); c < number_of_chunks; c++ {
+		var ch *chunk.Chunk
+		if c != number_of_chunks {
+			ch = chunk.NewChunk(c, p.index, chunk_size)
+		} else {
+			ch = chunk.NewChunk(c, p.index, last_chunk_size)
+		}
 
-        p.AddChunk(ch)
-    }
+		p.AddChunk(ch)
+	}
 }
 
-func (p *Piece) AddChunk(ch *chunk.Chunk){
-    p.chunks = append(p.chunks, ch)
+func (p *Piece) AddChunk(ch *chunk.Chunk) {
+	p.chunks = append(p.chunks, ch)
 }
 
 func (p *Piece) SetHash(hash []byte) {
-    p.hash = hash
+	p.hash = hash
 }
 
 func (p *Piece) GetHash() []byte {
-    return p.hash
+	return p.hash
 }
 
 func (p *Piece) GetRemainingBytes() int64 {
@@ -92,70 +93,70 @@ func (p *Piece) AddBoundary(f *file.File, bytes_remaining int64) int64 {
 }
 
 func (p *Piece) GetNextChunk() *chunk.Chunk {
-    for _, ch := range p.chunks {
-        if ch.GetStatus() == chunk.ChunkStatusReady {
-            ch.SetStatus(chunk.ChunkStatusInProgress)
-            return ch
-        }
-    }
+	for _, ch := range p.chunks {
+		if ch.GetStatus() == chunk.ChunkStatusReady {
+			ch.SetStatus(chunk.ChunkStatusInProgress)
+			return ch
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func (p *Piece) ChunksCount() (int, int, bool) {
-    total_chunks := len(p.chunks)
-    completed_chunks := 0
+	total_chunks := len(p.chunks)
+	completed_chunks := 0
 
-    for _, ch := range p.chunks {
-        if ch.GetStatus() == chunk.ChunkStatusDone {
-            completed_chunks++
-        }
-    }
+	for _, ch := range p.chunks {
+		if ch.GetStatus() == chunk.ChunkStatusDone {
+			completed_chunks++
+		}
+	}
 
-    success := false
+	success := false
 
-    if completed_chunks == total_chunks {
-        success = p.Verify()
-    }
+	if completed_chunks == total_chunks {
+		success = p.Verify()
+	}
 
-    return completed_chunks, total_chunks, success
+	return completed_chunks, total_chunks, success
 }
 
 func (p *Piece) Verify() bool {
-    if p.valid == false {
-        total_len := int64(0)
+	if p.valid == false {
+		total_len := int64(0)
 
-        for _, ch := range p.chunks {
-            total_len += ch.GetLength()
-        }
+		for _, ch := range p.chunks {
+			total_len += ch.GetLength()
+		}
 
-        data := make([]byte, total_len)
-        index := 0
-        for _, ch := range p.chunks {
-            length := int(ch.GetLength())
-            copy(data[index:index+length], ch.GetData())
-            index += length
-        }
+		data := make([]byte, total_len)
+		index := 0
+		for _, ch := range p.chunks {
+			length := int(ch.GetLength())
+			copy(data[index:index+length], ch.GetData())
+			index += length
+		}
 
-        h := sha1.New()
-        h.Write(data)
-        hash := h.Sum(nil)
+		h := sha1.New()
+		h.Write(data)
+		hash := h.Sum(nil)
 
-        if string(hash) == string(p.hash) {
-            p.valid = true
-            p.Write(data)
-        } else {
-            for _, ch := range p.chunks {
-                ch.SetStatus(chunk.ChunkStatusReady)
-            }
-        }
-    }
+		if string(hash) == string(p.hash) {
+			p.valid = true
+			p.Write(data)
+		} else {
+			for _, ch := range p.chunks {
+				ch.SetStatus(chunk.ChunkStatusReady)
+			}
+		}
+	}
 
-    return p.valid
+	return p.valid
 }
 
 func (p *Piece) Write(data []byte) {
-    for f, b := range p.boundaries {
-        f.Write(data[b.Piece_start:b.Piece_end], b.File_start)
-    }
+	for f, b := range p.boundaries {
+		f.Write(data[b.Piece_start:b.Piece_end], b.File_start)
+	}
 }
