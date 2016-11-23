@@ -10,6 +10,9 @@ import (
 	"github.com/zeebo/bencode"
 	"net/url"
 	"strings"
+
+    "os"
+    "os/exec"
 )
 
 type Torrent struct {
@@ -159,14 +162,58 @@ func (t *Torrent) ParseMetadata(data []byte) {
 }
 
 func (t *Torrent) SelectFile() {
-	for i, f := range t.files {
-		path := strings.Join(f.GetPath(), "/")
-		fmt.Println(i, f.Start_piece, f.End_piece, "::", path)
-	}
-	fmt.Println(len(t.files), "::", "all")
+	up := []byte{65,91}
+	down := []byte{66,91}
+	enter := []byte{10,0}
 
-	var file_index int
-	_, _ = fmt.Scanf("%d", &file_index)
+	// disable input buffering
+    exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
+    // do not display entered characters on the screen
+    exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
+    // restore the echoing state when exiting
+    defer exec.Command("stty", "-F", "/dev/tty", "echo").Run()
+
+	file_index := 0
+
+	menu_showing := true
+	for menu_showing {
+		for i, f := range t.files {
+			path := strings.Join(f.GetPath(), "/")
+			if i == file_index {
+				fmt.Println("::", path)
+			} else {
+				fmt.Println("  ", path)
+			}
+		}
+		if file_index == len(t.files) {
+			fmt.Println("::", "all")
+		} else {
+			fmt.Println("  ", "all")
+		}
+		
+		var b []byte = make([]byte, 2)
+	    for {
+	        os.Stdin.Read(b)
+	        if string(b) == string(enter) {
+	        	menu_showing = false
+	        	break
+	        } else if string(b) == string(up) {
+	        	if file_index > 0 {
+		        	file_index--
+		        	break
+	        	}
+	        } else if string(b) == string(down) {
+	        	if file_index < len(t.files) {
+		        	file_index++
+		        	break
+	        	}
+	        }
+	    }
+
+	    if menu_showing == true {
+	    	fmt.Println("\033[21A\r")
+	    }
+	}
 
 	if file_index < len(t.files) {
 		f := t.files[file_index]
