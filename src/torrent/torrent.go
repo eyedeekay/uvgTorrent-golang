@@ -211,7 +211,8 @@ func (t *Torrent) SelectFile() {
 	    }
 
 	    if menu_showing == true {
-	    	fmt.Println("\033[21A\r")
+	    	clear_menu_cmd := fmt.Sprintf("\033[%dA\r", int(len(t.files) + 2))
+	    	fmt.Println(clear_menu_cmd)
 	    }
 	}
 
