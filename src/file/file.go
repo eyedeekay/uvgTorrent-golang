@@ -38,7 +38,7 @@ func (f *File) GetDownloadable() bool {
 }
 
 func (f *File) GetPath() []string {
-	return f.path
+	return f.path[2:]
 }
 
 func (f *File) Write(data []byte, pos int64) {
@@ -48,7 +48,7 @@ func (f *File) Write(data []byte, pos int64) {
 	
 	if f.file_handle == nil {
 		// create folders if needed
-		path := f.GetPath()
+		path := f.path
 		file_path := fmt.Sprintf("%s", strings.Join(path, "/"))
 		folder_path := fmt.Sprintf("%s", strings.Join(path[0:len(path)-1], "/"))
 		os.MkdirAll(filepath.Join(folder_path), os.ModePerm)
