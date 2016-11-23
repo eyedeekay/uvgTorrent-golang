@@ -30,7 +30,8 @@ func main() {
 		os.Exit(0)
 	}()
 
-	fmt.Println(t.Name)
+	color.Green(fmt.Sprintf("  %s ", t.Name))
+	fmt.Println()
 
 	t.ConnectTrackers()
 	t.AnnounceTrackers()

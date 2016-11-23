@@ -179,13 +179,13 @@ func (t *Torrent) SelectFile() {
 		for i, f := range t.files {
 			path := strings.Join(f.GetPath(), "/")
 			if i == file_index {
-				c.Println("██", path)
+				c.Println("::", path)
 			} else {
 				fmt.Println("  ", path)
 			}
 		}
 		if file_index == len(t.files) {
-			c.Println("██", "all")
+			c.Println("::", "all")
 		} else {
 			fmt.Println("  ", "all")
 		}
