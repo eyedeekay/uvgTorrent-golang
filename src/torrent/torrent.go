@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
+	"github.com/fatih/color"
 	"net/url"
 	"strings"
 
@@ -174,19 +175,21 @@ func (t *Torrent) SelectFile() {
     defer exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 
 	file_index := 0
-
 	menu_showing := true
+
+	c := color.New(color.FgGreen)
+
 	for menu_showing {
 		for i, f := range t.files {
 			path := strings.Join(f.GetPath(), "/")
 			if i == file_index {
-				fmt.Println("::", path)
+				c.Println("██", path)
 			} else {
 				fmt.Println("  ", path)
 			}
 		}
 		if file_index == len(t.files) {
-			fmt.Println("::", "all")
+			c.Println("██", "all")
 		} else {
 			fmt.Println("  ", "all")
 		}
