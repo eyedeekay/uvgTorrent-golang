@@ -80,8 +80,6 @@ func (t *Torrent) ConnectTrackers() {
 			t.connected_trackers += 1
 		}
 	}
-
-	fmt.Println("connect finished :: ", t.connected_trackers)
 }
 
 func (t *Torrent) AnnounceTrackers() {
@@ -95,8 +93,6 @@ func (t *Torrent) AnnounceTrackers() {
 	for i := 0; i < t.connected_trackers; i++ {
 		<-announce_status
 	}
-
-	fmt.Println("announce finished")
 }
 
 func (t *Torrent) Run() {
