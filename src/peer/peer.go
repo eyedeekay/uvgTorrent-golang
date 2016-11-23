@@ -183,12 +183,13 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 }
 
 func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
-	request_chunk <- p
-	select {
-	case ch := <-p.chunk_chan:
-		p.chunk = ch
+	if p.MetadataLoaded() && p.IsChoked() == false {		
+		request_chunk <- p
+		select {
+		case ch := <-p.chunk_chan:
+			p.chunk = ch
+		}
 	}
-
 }
 
 func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
@@ -282,9 +283,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			p.isChoked = true
 		} else if msg_id == MSG_UNCHOKE {
 			p.isChoked = false
-			if p.MetadataLoaded() {
-				p.GetChunkFromTorrent(request_chunk)
-			}
+			p.GetChunkFromTorrent(request_chunk)
 		} else if msg_id == MSG_INTERESTED {
 		} else if msg_id == MSG_NOT_INTERESTED {
 		} else if msg_id == MSG_HAVE {
@@ -342,9 +341,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 
 				if p.MetadataLoaded() {
 					metadata <- p.metadata
-					if p.isChoked == false {
-						p.GetChunkFromTorrent(request_chunk)
-					}
+					p.GetChunkFromTorrent(request_chunk)
 				}
 			}
 		} else {
