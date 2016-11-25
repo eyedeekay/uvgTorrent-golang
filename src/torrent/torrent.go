@@ -116,13 +116,19 @@ func (t *Torrent) Run() {
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
 				if len(t.pieces) > 0 {
-					for i, p := range t.pieces {
-						completed, total, success := p.ChunksCount()
-				
-						if completed > 0 {
-							fmt.Println(i, "completed, total", completed, total, success)
+					completed_chunks := 0
+					total_chunks := 0
+					for _, p := range t.pieces {
+						if p.GetDownloadable() {
+							completed, total, _ := p.ChunksCount()
+							total_chunks += total
+							completed_chunks += completed
 						}
+						
 					}
+
+					var f float64 = float64(completed_chunks) / float64(total_chunks) * 100
+					t.ui.SetPercent(int(f))
 				}
 
 				p.ClaimChunk(t.pieces)
@@ -163,6 +169,7 @@ func (t *Torrent) SelectFile() {
 	t.ui.SelectFile(t.files, file_chan)
 
 	file_index := <- file_chan
+	fmt.Println(file_index)
 	if file_index < len(t.files) {
 		f := t.files[file_index]
 		f.SetDownloadable(true)

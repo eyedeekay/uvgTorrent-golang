@@ -151,7 +151,6 @@ func (p *Piece) Verify() bool {
 		h := sha1.New()
 		h.Write(data)
 		hash := h.Sum(nil)
-
 		if string(hash) == string(p.hash) {
 			p.valid = true
 			p.Write(data)
