@@ -141,22 +141,35 @@ func (t *Torrent) ParseMetadata(data []byte) {
 		return
 	}
 	t.pieces_length = t.metadata["piece length"].(int64)
+	if _, ok := t.metadata["files"]; ok {
+		for _, f := range t.metadata["files"].([]interface{}) {
+			m := f.(map[string]interface{})
 
-	for _, f := range t.metadata["files"].([]interface{}) {
-		m := f.(map[string]interface{})
+			length := m["length"].(int64)
+			p := m["path"].([]interface{})
 
-		length := m["length"].(int64)
-		p := m["path"].([]interface{})
+			path := make([]string, 0)
+			path = append(path, "downloads")
+			path = append(path, t.Name)
+			for _, path_seq := range p {
+				var str string = fmt.Sprintf("%v", path_seq)
+				path = append(path, str)
+			}
+
+			t.addFile(file.NewFile(length, path))
+		}
+	} else {
+		// single file torrent
+		length := t.metadata["length"].(int64)
+		name := t.metadata["name"].(string)
 
 		path := make([]string, 0)
 		path = append(path, "downloads")
 		path = append(path, t.Name)
-		for _, path_seq := range p {
-			var str string = fmt.Sprintf("%v", path_seq)
-			path = append(path, str)
-		}
+		path = append(path, name)
 
 		t.addFile(file.NewFile(length, path))
+
 	}
 
 	t.initPieces([]byte(t.metadata["pieces"].(string)))
