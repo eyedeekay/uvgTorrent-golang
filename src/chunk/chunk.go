@@ -1,9 +1,5 @@
 package chunk
 
-import (
-	"sync"
-)
-
 const (
 	ChunkStatusReady      = 0
 	ChunkStatusInProgress = 1
@@ -39,7 +35,7 @@ func (ch *Chunk) SetStatus(status int) {
 }
 
 func (ch *Chunk) GetData() []byte {
-	return ch.data[:]
+	return ch.data
 }
 
 func (ch *Chunk) SetData(data []byte) {
