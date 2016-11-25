@@ -35,7 +35,7 @@ func (ch *Chunk) SetStatus(status int) {
 }
 
 func (ch *Chunk) GetData() []byte {
-	return ch.data[:]
+	return ch.data
 }
 
 func (ch *Chunk) SetData(data []byte) {
