@@ -13,8 +13,8 @@ const (
 type Chunk struct {
 	index       int64
 	piece_index int64
-	data        []byte
 	status      int
+	data        []byte
 }
 
 func NewChunk(index int64, piece_index int64, length int64) *Chunk {
