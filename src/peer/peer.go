@@ -16,38 +16,36 @@ import (
 )
 
 type Peer struct {
-	ip                       net.IP
-	port                     uint16
-	connection               net.Conn
-	connected                bool
-	closed                   bool
-	handshaked               bool
-	ut_metadata              int64
-	metadata_size            int64
-	metadata_requested       bool
-	metadata_chunks_received int64
-	metadata                 []byte
-	bitfield                 *bitfield.Bitfield
+	ip                       		net.IP
+	port                     		uint16
+	connection               		net.Conn
+	connected                		bool
+	closed                   		bool
+	handshaked               		bool
+	choked 				 			bool
+	ut_metadata              		int64
+	metadata_size            		int64
+	metadata_chunks_received 		int64
+	// have I sent a request for the torrents metadata to 
+	// this peer yet?
+	metadata_requested       		bool
+	metadata                 		[]byte
+	// bitfield containing the pieces this peer has available for download
+	bitfield                 		*bitfield.Bitfield
 
-	chunk_chan 				 chan *chunk.Chunk
-	chunk      				 *chunk.Chunk
 
-	isChoked 				 bool
+	// channel for receiving new chunks from the torrent object
+	chunk_chan 				 		chan *chunk.Chunk
+	// the chunk i'm currently working on
+	chunk      				 		*chunk.Chunk
 }
 
 func NewPeer(ip net.IP, port uint16) *Peer {
 	p := Peer{}
 	p.ip = ip
 	p.port = port
-	p.closed = false
-	p.connected = false
-	p.handshaked = false
-	p.ut_metadata = 0
-	p.metadata_size = 0
-	p.metadata_chunks_received = 0
-	p.metadata_requested = false
+	p.choked = true
 	p.bitfield = bitfield.NewBitfield(true, 1)
-	p.isChoked = true
 	p.chunk_chan = make(chan *chunk.Chunk, 1)
 
 	return &p
@@ -58,9 +56,62 @@ func (p *Peer) IsConnected() bool {
 }
 
 func (p *Peer) IsChoked() bool {
-	return p.isChoked
+	return p.choked
 }
 
+func (p *Peer) IsMetadataLoaded() bool {
+	metadata_piece_size := int64(config.ChunkSize)
+	metadata_pieces := p.metadata_size/metadata_piece_size + 1
+
+	return p.metadata_chunks_received == metadata_pieces
+}
+
+func (p *Peer) CanRequestMetadata() bool {
+	if p.ut_metadata != 0 && p.metadata_size != 0 && p.metadata_requested == false {
+		p.metadata_requested = true
+		return true
+	} else {
+		return false
+	}
+}
+
+// get chunk from torrent will send a request for the next
+// available chunk belonging to a piece this peer has available
+// for download
+func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
+	if p.IsMetadataLoaded() && p.IsChoked() == false {
+		// ask the torrent to call ClaimChunk at the next available opportunity
+		request_chunk <- p
+		select {
+		case ch := <-p.chunk_chan:
+			p.chunk = ch
+		}
+	}
+}
+
+// after calling GetChunkFromTorrent the torrent object
+// calls this function, allowing the peer to select the 
+// next available chunk in the main goroutine, unblocking
+// the peer
+func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
+	if p.IsChoked() == false {
+		for i, pi := range pieces {
+			// if peer has piece
+			if pi.IsDownloadable() == true {
+				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
+					ch := pi.GetNextChunk()
+
+					if ch != nil {
+						p.chunk_chan <- ch
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// establish a connection with the peer
 func (p *Peer) Connect() {
 	timeOut := time.Duration(10) * time.Second
 
@@ -74,6 +125,8 @@ func (p *Peer) Connect() {
 	p.connected = true
 }
 
+// send extended handshake to peer
+// see: http://www.rasterbar.com/products/libtorrent/extension_protocol.html
 func (p *Peer) Handshake(hash []byte) {
 	// send regular handshake
 	var pstrlen int8
@@ -112,6 +165,8 @@ func (p *Peer) Handshake(hash []byte) {
 	p.SendInterested()
 }
 
+// tell the peer i'm looking for pieces
+// see: https://wiki.theory.org/BitTorrentSpecification
 func (p *Peer) SendInterested() {
 	var msg_len int32 = 1
 	var msg_id int8 = 2
@@ -123,15 +178,28 @@ func (p *Peer) SendInterested() {
 	p.connection.Write(buff.Bytes())
 }
 
-func (p *Peer) CanRequestMetadata() bool {
-	if p.ut_metadata != 0 && p.metadata_size != 0 && p.metadata_requested == false {
-		p.metadata_requested = true
-		return true
-	} else {
-		return false
-	}
+// request a chunk from a peer
+// see: https://wiki.theory.org/BitTorrentSpecification
+func (p *Peer) SendChunkRequest() {
+	chunk_size := int64(config.ChunkSize)
+	msg_length := int32(13)
+	msg_id := int8(6)
+
+	index := int32(p.chunk.GetPieceIndex())
+	begin := int32(chunk_size * p.chunk.GetIndex())
+	piece_length := int32(p.chunk.GetLength())
+
+	var buff bytes.Buffer
+	binary.Write(&buff, binary.BigEndian, msg_length)
+	binary.Write(&buff, binary.LittleEndian, msg_id)
+	binary.Write(&buff, binary.BigEndian, index)
+	binary.Write(&buff, binary.BigEndian, begin)
+	binary.Write(&buff, binary.BigEndian, piece_length)
+	p.connection.Write(buff.Bytes())
 }
 
+// send the extended metadata request
+// see: http://www.rasterbar.com/products/libtorrent/extension_protocol.html 
 func (p *Peer) RequestMetadata() {
 	metadata_piece_size := int64(config.ChunkSize)
 	num_pieces := p.metadata_size / metadata_piece_size
@@ -150,6 +218,12 @@ func (p *Peer) RequestMetadata() {
 	}
 }
 
+// the peers main loop. each peer runs in a seperate goroutine.
+// this function will connect and handshake with the peer if needed.
+// if there is a chunk available to request it will request it and update the chunks 
+// status accordingly.
+// if the peer is still connected after attempting to handle a message from the peer
+// the function will spin off a new goroutine to repeat the process
 func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) {
 	if p.IsConnected() == false && p.closed == false {
 		p.Connect()
@@ -177,57 +251,15 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	}
 
 	if p.connected && p.handshaked {
-		time.Sleep(5 * time.Millisecond) // sleep provides a small window for graceful shutdown
+		// sleep provides a small window for graceful shutdown
+		// and to allow golang to switch between goroutines
+		// remove it and the program gets choppy
+		time.Sleep(5 * time.Millisecond)
 		go p.Run(hash, metadata, request_chunk)
 	}
 }
 
-func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
-	if p.MetadataLoaded() && p.IsChoked() == false {		
-		request_chunk <- p
-		select {
-		case ch := <-p.chunk_chan:
-			p.chunk = ch
-		}
-	}
-}
-
-func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
-	if p.IsChoked() == false {
-		for i, pi := range pieces {
-			// if peer has piece
-			if pi.GetDownloadable() == true {
-				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
-					ch := pi.GetNextChunk()
-
-					if ch != nil {
-						p.chunk_chan <- ch
-						return
-					}
-				}
-			}
-		}
-	}
-}
-
-func (p *Peer) SendChunkRequest() {
-	chunk_size := int64(config.ChunkSize)
-	msg_length := int32(13)
-	msg_id := int8(6)
-
-	index := int32(p.chunk.GetPieceIndex())
-	begin := int32(chunk_size * p.chunk.GetIndex())
-	piece_length := int32(p.chunk.GetLength())
-
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, msg_length)
-	binary.Write(&buff, binary.LittleEndian, msg_id)
-	binary.Write(&buff, binary.BigEndian, index)
-	binary.Write(&buff, binary.BigEndian, begin)
-	binary.Write(&buff, binary.BigEndian, piece_length)
-	p.connection.Write(buff.Bytes())
-}
-
+// attempt to handle a message from the peer
 func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
@@ -280,9 +312,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		binary.Read(bytes.NewBuffer(message[0:1]), binary.BigEndian, &msg_id)
 
 		if msg_id == MSG_CHOKE {
-			p.isChoked = true
+			p.choked = true
 		} else if msg_id == MSG_UNCHOKE {
-			p.isChoked = false
+			p.choked = false
 			p.GetChunkFromTorrent(request_chunk)
 		} else if msg_id == MSG_INTERESTED {
 		} else if msg_id == MSG_NOT_INTERESTED {
@@ -339,7 +371,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 
 				p.metadata_chunks_received++
 
-				if p.MetadataLoaded() {
+				if p.IsMetadataLoaded() {
 					metadata <- p.metadata
 					p.GetChunkFromTorrent(request_chunk)
 				}
@@ -350,13 +382,6 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	} else {
 		p.Close()
 	}
-}
-
-func (p *Peer) MetadataLoaded() bool {
-	metadata_piece_size := int64(config.ChunkSize)
-	metadata_pieces := p.metadata_size/metadata_piece_size + 1
-
-	return p.metadata_chunks_received == metadata_pieces
 }
 
 func (p *Peer) Close() {

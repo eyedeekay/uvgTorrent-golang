@@ -11,13 +11,13 @@ import (
 
 type Tracker struct {
 	url           string
-	connected     bool
-	peers         []*peer.Peer
 	connection    *net.UDPConn
+	connected     bool
 	connection_id uint64
 	interval      uint32
 	seeders       uint32
 	leechers      uint32
+	peers         []*peer.Peer
 }
 
 func NewTracker(tracker_url string) *Tracker {
@@ -35,6 +35,10 @@ func NewTracker(tracker_url string) *Tracker {
 	}
 
 	return &t
+}
+
+func (t *Tracker) IsConnected() bool {
+	return t.connected
 }
 
 func (t *Tracker) Connect(done chan bool) {
@@ -84,10 +88,6 @@ func (t *Tracker) Connect(done chan bool) {
 	}
 
 	done <- true
-}
-
-func (t *Tracker) IsConnected() bool {
-	return t.connected
 }
 
 func (t *Tracker) Announce(hash []byte, done chan bool) {
@@ -178,6 +178,10 @@ func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *pee
 	for _, p := range t.peers {
 		go p.Run(hash, metadata, request_chunk)
 	}
+}
+
+func (t *Tracker) GetUrl() string {
+	return t.url
 }
 
 func (t *Tracker) Close() {

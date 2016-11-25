@@ -2,6 +2,7 @@ package main
 
 import (
 	"./src/torrent"
+    "./src/ui"
 	"fmt"
 	"os"
 	"os/signal"
@@ -19,12 +20,19 @@ func main() {
 		os.Exit(0)
 	}()
 
-	fmt.Println(t.Name)
+    go run(t)
+	
+    ui := ui.NewUI()
+    t.SetUI(ui)
+    ui.Init(t.Name, t.Trackers)
 
-	t.ConnectTrackers()
-	t.AnnounceTrackers()
+    t.Close()
+}
 
-	t.Run() // loop through peers forever handling messages
+func run(t *torrent.Torrent) {
+    t.ConnectTrackers()
+    t.AnnounceTrackers()
+    t.Run()
 }
 
 func cleanup(t *torrent.Torrent) {

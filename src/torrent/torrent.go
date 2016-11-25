@@ -5,6 +5,8 @@ import (
 	"../peer"
 	"../piece"
 	"../tracker"
+	"../ui"
+
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
@@ -23,6 +25,8 @@ type Torrent struct {
 	
 	files         	   []*file.File
 	pieces        	   []*piece.Piece
+
+	ui 				   *ui.UI
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -76,8 +80,6 @@ func (t *Torrent) ConnectTrackers() {
 			t.connected_trackers += 1
 		}
 	}
-
-	fmt.Println("connect finished :: ", t.connected_trackers)
 }
 
 func (t *Torrent) AnnounceTrackers() {
@@ -91,8 +93,6 @@ func (t *Torrent) AnnounceTrackers() {
 	for i := 0; i < t.connected_trackers; i++ {
 		<-announce_status
 	}
-
-	fmt.Println("announce finished")
 }
 
 func (t *Torrent) Run() {
@@ -116,13 +116,18 @@ func (t *Torrent) Run() {
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
 				if len(t.pieces) > 0 {
-					for i, p := range t.pieces {
-						completed, total, success := p.ChunksCount()
-
-						if completed > 0 {
-							fmt.Println(i, "completed, total", completed, total, success)
+					completed_chunks := 0
+					total_chunks := 0
+					for _, p := range t.pieces {
+						if p.IsDownloadable() {
+							completed, total, _ := p.ChunksCount()
+							total_chunks += total
+							completed_chunks += completed
 						}
+						
 					}
+
+					t.ui.SetPercent(completed_chunks, total_chunks)
 				}
 
 				p.ClaimChunk(t.pieces)
@@ -132,7 +137,8 @@ func (t *Torrent) Run() {
 
 func (t *Torrent) ParseMetadata(data []byte) {
 	if err := bencode.DecodeBytes(data, &t.metadata); err != nil {
-		panic(err)
+		t.metadata = nil
+		return
 	}
 	t.pieces_length = t.metadata["piece length"].(int64)
 
@@ -159,20 +165,17 @@ func (t *Torrent) ParseMetadata(data []byte) {
 }
 
 func (t *Torrent) SelectFile() {
-	for i, f := range t.files {
-		path := strings.Join(f.GetPath(), "/")
-		fmt.Println(i, f.Start_piece, f.End_piece, "::", path)
-	}
-	fmt.Println(len(t.files), "::", "all")
+	file_chan := make(chan int)
+	t.ui.SelectFile(t.files, file_chan)
 
-	var file_index int
-	_, _ = fmt.Scanf("%d", &file_index)
-
+	file_index := <- file_chan
+	
 	if file_index < len(t.files) {
 		f := t.files[file_index]
 		f.SetDownloadable(true)
 
-		for i := f.Start_piece; i <= f.End_piece; i++ {
+		start_piece, end_piece := f.GetStartAndEndPieces()
+		for i := start_piece; i <= end_piece; i++ {
 			t.pieces[i].SetDownloadable(true)
 		}
 	} else {
@@ -183,6 +186,10 @@ func (t *Torrent) SelectFile() {
 			pi.SetDownloadable(true)
 		}
 	}
+}
+
+func (t *Torrent) SetUI(u *ui.UI) {
+	t.ui = u
 }
 
 func (t *Torrent) Close() {
@@ -199,7 +206,7 @@ func (t *Torrent) Close() {
 
 func (t *Torrent) addFile(f *file.File) {
 	t.files = append(t.files, f)
-	t.total_length += f.Length
+	t.total_length += f.GetLength()
 }
 
 func (t *Torrent) addPiece(p *piece.Piece) {
@@ -211,11 +218,11 @@ func (t *Torrent) initPieces(pieces []byte) {
 	var current_piece *piece.Piece = nil
 	current_piece_index := int64(-1)
 	for _, f := range t.files {
-		file_bytes_remaining := f.Length
+		file_bytes_remaining := f.GetLength()
 		if current_piece == nil {
-			f.Start_piece = 0
+			f.SetStartPiece(0)
 		} else {
-			f.Start_piece = current_piece_index
+			f.SetStartPiece(current_piece_index)
 		}
 		
 
@@ -234,7 +241,7 @@ func (t *Torrent) initPieces(pieces []byte) {
 			}
 		}
 
-		f.End_piece = current_piece_index
+		f.SetEndPiece(current_piece_index)
 	}
 
 	t.addPiece(current_piece)

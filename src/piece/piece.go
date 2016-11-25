@@ -12,11 +12,12 @@ type Piece struct {
 	index           int64
 	bytes_remaining int64
 	length          int64
-	boundaries      map[*file.File]*Boundary
 	hash            []byte
-	chunks          []*chunk.Chunk
-	valid           bool
 	downloadable	bool
+	valid           bool
+
+	chunks          []*chunk.Chunk
+	boundaries      map[*file.File]*Boundary
 }
 
 type Boundary struct {
@@ -38,30 +39,6 @@ func NewPiece(index int64, length int64) *Piece {
 	return &p
 }
 
-func Round(val float64, roundOn float64, places int) float64 {
-
-	pow := math.Pow(10, float64(places))
-	digit := pow * val
-	_, div := math.Modf(digit)
-
-	var round float64
-	if val > 0 {
-		if div >= roundOn {
-			round = math.Ceil(digit)
-		} else {
-			round = math.Floor(digit)
-		}
-	} else {
-		if div >= roundOn {
-			round = math.Floor(digit)
-		} else {
-			round = math.Ceil(digit)
-		}
-	}
-
-	return round / pow
-}
-
 func (p *Piece) InitChunks() {
 	p.length = p.length - p.bytes_remaining
 
@@ -72,10 +49,10 @@ func (p *Piece) InitChunks() {
 	for c := int64(0); c < number_of_chunks; c++ {
 		var ch *chunk.Chunk
 		if c == number_of_chunks - 1 && last_chunk_size != 0 {
-			ch = chunk.NewChunk(c, p.index, last_chunk_size)
-		} else {
-			ch = chunk.NewChunk(c, p.index, chunk_size)
-		}
+ 			ch = chunk.NewChunk(c, p.index, last_chunk_size)
+ 		} else {
+ 			ch = chunk.NewChunk(c, p.index, chunk_size)
+ 		}
 
 		p.AddChunk(ch)
 	}
@@ -85,29 +62,9 @@ func (p *Piece) AddChunk(ch *chunk.Chunk) {
 	p.chunks = append(p.chunks, ch)
 }
 
-func (p *Piece) SetHash(hash []byte) {
-	p.hash = hash
-}
-
-func (p *Piece) SetDownloadable(downloadable bool) {
-	p.downloadable = downloadable
-}
-
-func (p *Piece) GetDownloadable() bool {
-	return p.downloadable
-}
-
-func (p *Piece) GetHash() []byte {
-	return p.hash
-}
-
-func (p *Piece) GetRemainingBytes() int64 {
-	return p.bytes_remaining
-}
-
 func (p *Piece) AddBoundary(f *file.File, bytes_remaining int64) int64 {
 	b := &Boundary{}
-	b.File_start = f.Length - bytes_remaining
+	b.File_start = f.GetLength() - bytes_remaining
 	b.Piece_start = p.length - p.bytes_remaining
 
 	if p.bytes_remaining > bytes_remaining {
@@ -125,6 +82,26 @@ func (p *Piece) AddBoundary(f *file.File, bytes_remaining int64) int64 {
 	p.boundaries[f] = b
 
 	return bytes_remaining
+}
+
+func (p *Piece) SetHash(hash []byte) {
+	p.hash = hash
+}
+
+func (p *Piece) SetDownloadable(downloadable bool) {
+	p.downloadable = downloadable
+}
+
+func (p *Piece) IsDownloadable() bool {
+	return p.downloadable
+}
+
+func (p *Piece) GetHash() []byte {
+	return p.hash
+}
+
+func (p *Piece) GetRemainingBytes() int64 {
+	return p.bytes_remaining
 }
 
 func (p *Piece) GetNextChunk() *chunk.Chunk {
@@ -167,7 +144,6 @@ func (p *Piece) Verify() bool {
 
 		data := make([]byte, total_len)
 		index := 0
-
 		for _, ch := range p.chunks {
 			length := int(ch.GetLength())
 			copy(data[index:index+length], ch.GetData())
@@ -177,10 +153,13 @@ func (p *Piece) Verify() bool {
 		h := sha1.New()
 		h.Write(data)
 		hash := h.Sum(nil)
-
 		if string(hash) == string(p.hash) {
 			p.valid = true
 			p.Write(data)
+
+			for _, ch := range p.chunks {
+				ch.SetData([]byte{})
+			}
 		} else {
 			for _, ch := range p.chunks {
 				ch.SetStatus(chunk.ChunkStatusReady)
@@ -195,4 +174,28 @@ func (p *Piece) Write(data []byte) {
 	for f, b := range p.boundaries {
 		f.Write(data[b.Piece_start:b.Piece_end], b.File_start)
 	}
+}
+
+func Round(val float64, roundOn float64, places int) float64 {
+
+	pow := math.Pow(10, float64(places))
+	digit := pow * val
+	_, div := math.Modf(digit)
+
+	var round float64
+	if val > 0 {
+		if div >= roundOn {
+			round = math.Ceil(digit)
+		} else {
+			round = math.Floor(digit)
+		}
+	} else {
+		if div >= roundOn {
+			round = math.Floor(digit)
+		} else {
+			round = math.Ceil(digit)
+		}
+	}
+
+	return round / pow
 }
