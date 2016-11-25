@@ -1,5 +1,6 @@
 package chunk
 
+// chunk status consts
 const (
 	ChunkStatusReady      = 0
 	ChunkStatusInProgress = 1
@@ -24,18 +25,8 @@ func NewChunk(index int64, piece_index int64, length int64) *Chunk {
 	return &c
 }
 
-func (ch *Chunk) GetStatus() int {
-	status := ch.status
-
-	return status
-}
-
 func (ch *Chunk) SetStatus(status int) {
 	ch.status = status
-}
-
-func (ch *Chunk) GetData() []byte {
-	return ch.data
 }
 
 func (ch *Chunk) SetData(data []byte) {
@@ -52,4 +43,14 @@ func (ch *Chunk) GetPieceIndex() int64 {
 
 func (ch *Chunk) GetLength() int64 {
 	return int64(len(ch.data))
+}
+
+func (ch *Chunk) GetStatus() int {
+	status := ch.status
+
+	return status
+}
+
+func (ch *Chunk) GetData() []byte {
+	return ch.data
 }
