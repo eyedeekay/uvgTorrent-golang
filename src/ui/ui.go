@@ -80,7 +80,7 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     }
     
     u.tracker_text = termui.NewPar(""); //"  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n")
-    u.tracker_text.Height = 7
+    u.tracker_text.Height = len(u.trackers) + 2
     u.tracker_text.Width = 1
     u.tracker_text.BorderLabel = "Torrent :: " + name
     u.tracker_text.BorderLabelFg = termui.ColorCyan
