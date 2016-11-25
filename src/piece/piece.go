@@ -67,7 +67,7 @@ func (p *Piece) InitChunks() {
 	p.length = p.length - p.bytes_remaining
 
 	chunk_size := int64(config.ChunkSize)
-	number_of_chunks := int64(Round(float64(p.length) / float64(chunk_size), 0.49, 0))
+	number_of_chunks := int64(Round(float64(p.length) / float64(chunk_size), 0.50, 0))
 	last_chunk_size := p.length % chunk_size
 
 	for c := int64(0); c < number_of_chunks; c++ {
