@@ -11,7 +11,7 @@ Besides demonstrating the basics of the torrent protocol uvgTorrent also shows o
 
 # usage
 
-``bash
+```bash
 #!/bin/bash
 
 export GOPATH=/absolute/path/to/uvgTorrent-golang
