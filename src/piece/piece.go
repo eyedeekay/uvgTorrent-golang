@@ -92,7 +92,7 @@ func (p *Piece) SetDownloadable(downloadable bool) {
 	p.downloadable = downloadable
 }
 
-func (p *Piece) GetDownloadable() bool {
+func (p *Piece) IsDownloadable() bool {
 	return p.downloadable
 }
 

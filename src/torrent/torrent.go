@@ -119,7 +119,7 @@ func (t *Torrent) Run() {
 					completed_chunks := 0
 					total_chunks := 0
 					for _, p := range t.pieces {
-						if p.GetDownloadable() {
+						if p.IsDownloadable() {
 							completed, total, _ := p.ChunksCount()
 							total_chunks += total
 							completed_chunks += completed

@@ -42,7 +42,7 @@ func (f *File) GetStartAndEndPieces() (int64, int64) {
 	return f.start_piece, f.end_piece
 }
 
-func (f *File) GetDownloadable() bool {
+func (f *File) IsDownloadable() bool {
 	return f.downloadable
 }
 
@@ -59,7 +59,7 @@ func (f *File) GetLength() int64 {
 }
 
 func (f *File) Write(data []byte, pos int64) {
-	if f.GetDownloadable() == false {
+	if f.IsDownloadable() == false {
 		return
 	}
 	
