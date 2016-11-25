@@ -174,7 +174,8 @@ func (t *Torrent) SelectFile() {
 		f := t.files[file_index]
 		f.SetDownloadable(true)
 
-		for i := f.Start_piece; i <= f.End_piece; i++ {
+		start_piece, end_piece := f.GetStartAndEndPieces()
+		for i := start_piece; i <= end_piece; i++ {
 			t.pieces[i].SetDownloadable(true)
 		}
 	} else {
@@ -205,7 +206,7 @@ func (t *Torrent) Close() {
 
 func (t *Torrent) addFile(f *file.File) {
 	t.files = append(t.files, f)
-	t.total_length += f.Length
+	t.total_length += f.GetLength()
 }
 
 func (t *Torrent) addPiece(p *piece.Piece) {
@@ -217,11 +218,11 @@ func (t *Torrent) initPieces(pieces []byte) {
 	var current_piece *piece.Piece = nil
 	current_piece_index := int64(-1)
 	for _, f := range t.files {
-		file_bytes_remaining := f.Length
+		file_bytes_remaining := f.GetLength()
 		if current_piece == nil {
-			f.Start_piece = 0
+			f.SetStartPiece(0)
 		} else {
-			f.Start_piece = current_piece_index
+			f.SetStartPiece(current_piece_index)
 		}
 		
 
@@ -240,7 +241,7 @@ func (t *Torrent) initPieces(pieces []byte) {
 			}
 		}
 
-		f.End_piece = current_piece_index
+		f.SetEndPiece(current_piece_index)
 	}
 
 	t.addPiece(current_piece)

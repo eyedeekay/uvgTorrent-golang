@@ -9,28 +9,37 @@ import (
 )
 
 type File struct {
-	Length       int64
-	Start_piece  int64
-	End_piece    int64
+	start_piece  int64
+	end_piece    int64
+	length       int64
 	path         []string
-	file_handle  *os.File
 	downloadable bool
+
+	file_handle  *os.File
 }
 
 func NewFile(length int64, path []string) *File {
 	f := File{}
-	f.Length = length
-	f.Start_piece = 0
-	f.End_piece = 0
+	f.length = length
 	f.path = path
-	f.file_handle = nil
-	f.downloadable = false
 
 	return &f
 }
 
+func (f *File) SetStartPiece(start_piece int64) {
+	f.start_piece = start_piece
+}
+
+func (f *File) SetEndPiece(end_piece int64) {
+	f.end_piece = end_piece
+}
+
 func (f *File) SetDownloadable(downloadable bool) {
 	f.downloadable = downloadable
+}
+
+func (f *File) GetStartAndEndPieces() (int64, int64) {
+	return f.start_piece, f.end_piece
 }
 
 func (f *File) GetDownloadable() bool {
@@ -43,6 +52,10 @@ func (f *File) GetPath() []string {
 
 func (f *File) GetDisplayPath() []string {
 	return f.path[2:]
+}
+
+func (f *File) GetLength() int64 {
+	return f.length
 }
 
 func (f *File) Write(data []byte, pos int64) {
