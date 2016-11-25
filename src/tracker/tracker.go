@@ -180,6 +180,10 @@ func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *pee
 	}
 }
 
+func (t *Tracker) GetUrl() string {
+	return t.url
+}
+
 func (t *Tracker) Close() {
 	for _, p := range t.peers {
 		if p.IsConnected() {

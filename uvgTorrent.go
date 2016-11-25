@@ -10,18 +10,6 @@ import (
 )
 
 func main() {
-	/*
-    color.Red("                                                                                                    ")
-    color.Red("  ▄• ▄▌ ▌ ▐· ▄▄ • ▄▄▄▄▄      ▄▄▄  ▄▄▄  ▄▄▄ . ▐ ▄ ▄▄▄▄▄     ▄▄▄·▄▄▄  ▄▄▄ ..▄▄ · ▄▄▄ . ▐ ▄ ▄▄▄▄▄.▄▄ · ")
-    color.Red("  █▪██▌▪█·█▌▐█ ▀ ▪•██  ▪     ▀▄ █·▀▄ █·▀▄.▀·•█▌▐█•██      ▐█ ▄█▀▄ █·▀▄.▀·▐█ ▀. ▀▄.▀·•█▌▐█•██  ▐█ ▀. ")
-    color.Red("  █▌▐█▌▐█▐█•▄█ ▀█▄ ▐█.▪ ▄█▀▄ ▐▀▀▄ ▐▀▀▄ ▐▀▀▪▄▐█▐▐▌ ▐█.▪     ██▀·▐▀▀▄ ▐▀▀▪▄▄▀▀▀█▄▐▀▀▪▄▐█▐▐▌ ▐█.▪▄▀▀▀█▄")
-    color.Red("  ▐█▄█▌ ███ ▐█▄▪▐█ ▐█▌·▐█▌.▐▌▐█•█▌▐█•█▌▐█▄▄▌██▐█▌ ▐█▌·    ▐█▪·•▐█•█▌▐█▄▄▌▐█▄▪▐█▐█▄▄▌██▐█▌ ▐█▌·▐█▄▪▐█")
-    color.Red("   ▀▀▀ . ▀  ·▀▀▀▀  ▀▀▀  ▀█▄▀▪.▀  ▀.▀  ▀ ▀▀▀ ▀▀ █▪ ▀▀▀     .▀   .▀  ▀ ▀▀▀  ▀▀▀▀  ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀▀ ")
-    color.Red("                                                                                                    ")
-    color.Blue("  ██████████████████████████████████████████████████████████████████████████████████████████████████")
-    color.Red("                                                                                                    ")
-    */
-
 	t := torrent.NewTorrent(os.Args[1])
 
 	c := make(chan os.Signal, 2)
@@ -32,14 +20,11 @@ func main() {
 		os.Exit(0)
 	}()
 
-	// color.Green(fmt.Sprintf("  %s ", t.Name))
-	// fmt.Println()
-
-    ui := ui.NewUI()
-    ui.Init()
-
 	t.ConnectTrackers()
 	t.AnnounceTrackers()
+    
+    ui := ui.NewUI()
+    ui.Init(t.Name, t.Trackers)
 
 	t.Run() // loop through peers forever handling messages
 }
