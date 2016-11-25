@@ -3,7 +3,8 @@ package piece
 import (
 	"../chunk"
 	"../file"
-	"config"
+	"../config"
+	"math"
 	"crypto/sha1"
 )
 
@@ -37,20 +38,44 @@ func NewPiece(index int64, length int64) *Piece {
 	return &p
 }
 
+func Round(val float64, roundOn float64, places int) float64 {
+
+	pow := math.Pow(10, float64(places))
+	digit := pow * val
+	_, div := math.Modf(digit)
+
+	var round float64
+	if val > 0 {
+		if div >= roundOn {
+			round = math.Ceil(digit)
+		} else {
+			round = math.Floor(digit)
+		}
+	} else {
+		if div >= roundOn {
+			round = math.Floor(digit)
+		} else {
+			round = math.Ceil(digit)
+		}
+	}
+
+	return round / pow
+}
+
 func (p *Piece) InitChunks() {
 	p.length = p.length - p.bytes_remaining
 
 	chunk_size := int64(config.ChunkSize)
-	number_of_chunks := p.length / chunk_size
+	number_of_chunks := int64(Round(float64(p.length) / float64(chunk_size), 0.50, 0))
 	last_chunk_size := p.length % chunk_size
 
 	for c := int64(0); c < number_of_chunks; c++ {
 		var ch *chunk.Chunk
-		if c != number_of_chunks {
-			ch = chunk.NewChunk(c, p.index, chunk_size)
-		} else {
-			ch = chunk.NewChunk(c, p.index, last_chunk_size)
-		}
+		if c == number_of_chunks - 1 && last_chunk_size != 0 {
+ 			ch = chunk.NewChunk(c, p.index, last_chunk_size)
+ 		} else {
+ 			ch = chunk.NewChunk(c, p.index, chunk_size)
+ 		}
 
 		p.AddChunk(ch)
 	}
