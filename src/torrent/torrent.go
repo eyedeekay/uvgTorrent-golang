@@ -132,7 +132,8 @@ func (t *Torrent) Run() {
 
 func (t *Torrent) ParseMetadata(data []byte) {
 	if err := bencode.DecodeBytes(data, &t.metadata); err != nil {
-		panic(err)
+		t.metadata = nil
+		return
 	}
 	t.pieces_length = t.metadata["piece length"].(int64)
 	if _, ok := t.metadata["files"]; ok {
