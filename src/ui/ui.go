@@ -14,6 +14,7 @@ import (
 type UI struct {
     current_page int
     tracker_text *termui.Par
+    key *termui.Par
     files_list *termui.List
     gauge *termui.Gauge
     trackers []*tracker.Tracker
@@ -23,7 +24,6 @@ type UI struct {
     selecting_file bool
     file_selected bool
     selected_file int
-    vlc_opened bool
 
     first_file int
     last_file int
@@ -79,7 +79,7 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
         termui.Body.AddRows(termui.NewRow(termui.NewCol(2, 0, nil), termui.NewCol(11, 0, p)))
     }
     
-    u.tracker_text = termui.NewPar(""); //"  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n  [Tracker :: ](fg-red)\n")
+    u.tracker_text = termui.NewPar("");
     u.tracker_text.Height = len(u.trackers) + 2
     u.tracker_text.Width = 1
     u.tracker_text.BorderLabel = "Torrent :: " + name
@@ -87,8 +87,7 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     u.update_trackers_text();
     termui.Body.AddRows(termui.NewRow(termui.NewCol(2, 0, nil), termui.NewCol(8, 0, u.tracker_text)))
 
-    strs := []string{
-        "  Loading..."}
+    strs := []string{}
 
     u.files_list = termui.NewList()
     u.files_list.Items = strs
@@ -105,7 +104,13 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     u.gauge.Height = 3
     u.gauge.BarColor = termui.ColorCyan
     u.gauge.PercentColorHighlighted = termui.ColorBlack
+    u.gauge.Label = "Loading..."
     termui.Body.AddRows(termui.NewRow(termui.NewCol(2, 0, nil), termui.NewCol(8, 0, u.gauge)))
+
+    u.key = termui.NewPar("  [up    -> file list up](fg-red) \n  [down  -> file list down](fg-red) \n  [enter -> start download](fg-red) \n  [v     -> open video in vlc](fg-red) \n  [q     -> quit](fg-cyan)");
+    u.key.Height = len(u.trackers) + 2
+    u.key.Width = 1
+    termui.Body.AddRows(termui.NewRow(termui.NewCol(2, 0, nil), termui.NewCol(8, 0, u.key)))
 
     // calculate layout
     termui.Body.Align()
@@ -147,14 +152,16 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
         if u.selecting_file == true {
             u.file_selected = true
             u.selecting_file = false
+
+            u.key.Text = "  [up    -> file list up](fg-red) \n  [down  -> file list down](fg-red) \n  [enter -> start download](fg-red) \n  [v     -> open video in vlc](fg-red) \n  [q     -> quit](fg-cyan)"
+
             u.file_chan <- u.selected_file
         }
     })
 
     termui.Handle("/sys/kbd/v", func(termui.Event) {
         // launch vlc
-        if u.file_selected == true && u.vlc_opened == false {
-            u.vlc_opened = true
+        if u.file_selected == true {
             f := u.files[u.selected_file]
 
             path := strings.Join(f.GetPath(), "/")
@@ -206,6 +213,9 @@ func (u *UI) update_files_text() {
 }
 
 func (u *UI) SelectFile(files []*file.File, file_chan chan int) {
+    u.gauge.Label = ""
+    u.key.Text = "  [up    -> file list up](fg-cyan) \n  [down  -> file list down](fg-cyan) \n  [enter -> start download](fg-cyan) \n  [v     -> open video in vlc](fg-red) \n  [q     -> quit](fg-cyan)"
+
     u.file_chan = file_chan
     u.files = files
     u.update_files_text()
@@ -226,4 +236,7 @@ func (u *UI) SetPercent(completed int, total int) {
     var f float64 = float64(completed) / float64(total) * 100
     u.gauge.Percent = int(f)
     u.gauge.Label = "{{percent}}% (" + strconv.FormatInt(int64(completed), 10) + " / " + strconv.FormatInt(int64(total), 10) + " chunks completed)"
+    if u.gauge.Percent >= 10 {
+        u.key.Text = "  [up    -> file list up](fg-red) \n  [down  -> file list down](fg-red) \n  [enter -> start download](fg-red) \n  [v     -> open video in vlc](fg-cyan) \n  [q     -> quit](fg-cyan)"
+    }
 }
