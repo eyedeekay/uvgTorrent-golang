@@ -300,7 +300,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			if len(message) > 9 {
 				data := message[9:]
 				if p.chunk != nil {
-					if len(data) == config.ChunkSize {
+					if len(data) == int(p.chunk.GetLength()) {
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
 					}
