@@ -3,6 +3,7 @@ package ui
 import (
     "strings"
     "os/exec"
+    "strconv"
 
     "github.com/gizak/termui"
 
@@ -40,7 +41,7 @@ func (u *UI) update_trackers_text() {
     text := ""
     for _, t := range u.trackers {
         if t.IsConnected() {
-            text = text + "  [Tracker :: " + t.GetUrl() + "](fg-green)\n"
+            text = text + "  [Tracker :: " + t.GetUrl() + "](fg-cyan)\n"
         } else {
             text = text + "  [Tracker :: " + t.GetUrl() + "](fg-red)\n"
         }
@@ -60,18 +61,18 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
 
     uvg_welcome_text := []string{
         "                                                                                                  ",
-        "[▄• ▄▌ ▌ ▐· ▄▄ • ▄▄▄▄▄      ▄▄▄  ▄▄▄  ▄▄▄ . ▐ ▄ ▄▄▄▄▄     ▄▄▄·▄▄▄  ▄▄▄ ..▄▄ · ▄▄▄ . ▐ ▄ ▄▄▄▄▄.▄▄ · ](fg-red)",
-        "[█▪██▌▪█·█▌▐█ ▀ ▪•██  ▪     ▀▄ █·▀▄ █·▀▄.▀·•█▌▐█•██      ▐█ ▄█▀▄ █·▀▄.▀·▐█ ▀. ▀▄.▀·•█▌▐█•██  ▐█ ▀. ](fg-red)",
-        "[█▌▐█▌▐█▐█•▄█ ▀█▄ ▐█.▪ ▄█▀▄ ▐▀▀▄ ▐▀▀▄ ▐▀▀▪▄▐█▐▐▌ ▐█.▪     ██▀·▐▀▀▄ ▐▀▀▪▄▄▀▀▀█▄▐▀▀▪▄▐█▐▐▌ ▐█.▪▄▀▀▀█▄](fg-red)",
-        "[▐█▄█▌ ███ ▐█▄▪▐█ ▐█▌·▐█▌.▐▌▐█•█▌▐█•█▌▐█▄▄▌██▐█▌ ▐█▌·    ▐█▪·•▐█•█▌▐█▄▄▌▐█▄▪▐█▐█▄▄▌██▐█▌ ▐█▌·▐█▄▪▐█](fg-red)",
-        "[ ▀▀▀ . ▀  ·▀▀▀▀  ▀▀▀  ▀█▄▀▪.▀  ▀.▀  ▀ ▀▀▀ ▀▀ █▪ ▀▀▀     .▀   .▀  ▀ ▀▀▀  ▀▀▀▀  ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀▀ ](fg-red)",
-        "[                                                                                                  ](fg-red)",
+        "[▄• ▄▌ ▌ ▐· ▄▄ • ▄▄▄▄▄      ▄▄▄  ▄▄▄  ▄▄▄ . ▐ ▄ ▄▄▄▄▄     ▄▄▄·▄▄▄  ▄▄▄ ..▄▄ · ▄▄▄ . ▐ ▄ ▄▄▄▄▄.▄▄ · ](fg-cyan)",
+        "[█▪██▌▪█·█▌▐█ ▀ ▪•██  ▪     ▀▄ █·▀▄ █·▀▄.▀·•█▌▐█•██      ▐█ ▄█▀▄ █·▀▄.▀·▐█ ▀. ▀▄.▀·•█▌▐█•██  ▐█ ▀. ](fg-cyan)",
+        "[█▌▐█▌▐█▐█•▄█ ▀█▄ ▐█.▪ ▄█▀▄ ▐▀▀▄ ▐▀▀▄ ▐▀▀▪▄▐█▐▐▌ ▐█.▪     ██▀·▐▀▀▄ ▐▀▀▪▄▄▀▀▀█▄▐▀▀▪▄▐█▐▐▌ ▐█.▪▄▀▀▀█▄](fg-cyan)",
+        "[▐█▄█▌ ███ ▐█▄▪▐█ ▐█▌·▐█▌.▐▌▐█•█▌▐█•█▌▐█▄▄▌██▐█▌ ▐█▌·    ▐█▪·•▐█•█▌▐█▄▄▌▐█▄▪▐█▐█▄▄▌██▐█▌ ▐█▌·▐█▄▪▐█](fg-cyan)",
+        "[ ▀▀▀ . ▀  ·▀▀▀▀  ▀▀▀  ▀█▄▀▪.▀  ▀.▀  ▀ ▀▀▀ ▀▀ █▪ ▀▀▀     .▀   .▀  ▀ ▀▀▀  ▀▀▀▀  ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀▀ ](fg-cyan)",
+        "[                                                                                                  ](fg-cyan)",
         "██████████████████████████████████████████████████████████████████████████████████████████████████",
         "                                                                                                  "}
 
     for _, r := range uvg_welcome_text {
         p := termui.NewPar(r)
-        p.TextFgColor = termui.ColorBlue
+        p.TextFgColor = termui.ColorRed
         p.Border = false
         p.Height = 1
 
@@ -102,8 +103,8 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     u.gauge = termui.NewGauge()
     u.gauge.Percent = 0
     u.gauge.Height = 3
-    u.gauge.BarColor = termui.ColorBlue
-    u.gauge.BorderLabelFg = termui.ColorCyan
+    u.gauge.BarColor = termui.ColorCyan
+    u.gauge.PercentColorHighlighted = termui.ColorBlack
     termui.Body.AddRows(termui.NewRow(termui.NewCol(2, 0, nil), termui.NewCol(8, 0, u.gauge)))
 
     // calculate layout
@@ -187,7 +188,7 @@ func (u *UI) update_files_text() {
         if i >= u.first_file && i <= u.last_file {
             path := strings.Join(f.GetDisplayPath(), "/")
             if i == u.selected_file {
-                strs = append(strs, "[[::] " + path + "](fg-green)")
+                strs = append(strs, "[[::] " + path + "](fg-cyan)")
             } else {
                 strs = append(strs, "[[  ] " + path + "](fg-red)")
             }
@@ -195,7 +196,7 @@ func (u *UI) update_files_text() {
     }
     if u.selected_file > len(u.files) - 6 {
         if u.selected_file == len(u.files) {
-            strs = append(strs, "[[::] all](fg-green)")
+            strs = append(strs, "[[::] all](fg-cyan)")
         } else {
             strs = append(strs, "[[  ] all](fg-red)")
         }
@@ -221,6 +222,8 @@ func (u *UI) Refresh() {
     termui.Render(termui.Body)
 }
 
-func (u *UI) SetPercent(per int) {
-    u.gauge.Percent = per
+func (u *UI) SetPercent(completed int, total int) {
+    var f float64 = float64(completed) / float64(total) * 100
+    u.gauge.Percent = int(f)
+    u.gauge.Label = "{{percent}}% (" + strconv.FormatInt(int64(completed), 10) + " / " + strconv.FormatInt(int64(total), 10) + " chunks completed)"
 }
