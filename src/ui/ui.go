@@ -23,10 +23,15 @@ type UI struct {
     file_selected bool
     selected_file int
     vlc_opened bool
+
+    first_file int
+    last_file int
 }
 
 func NewUI() *UI {
     ui := &UI{}
+    ui.first_file = 0
+    ui.last_file = 6
 
     return ui
 }
@@ -88,7 +93,7 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     u.files_list.Items = strs
     u.files_list.BorderLabelFg = termui.ColorCyan
     u.files_list.BorderLabel = "Files "
-    u.files_list.Height = 3
+    u.files_list.Height = 3 + u.last_file
     u.files_list.Width = 25
     u.files_list.Y = 0
 
@@ -110,6 +115,10 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
         if u.selecting_file == true {
             if u.selected_file > 0 {
                 u.selected_file--
+                if u.selected_file < u.first_file {
+                    u.first_file--
+                    u.last_file--
+                }
             }
 
             u.update_files_text()
@@ -121,6 +130,10 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
         if u.selecting_file == true {
             if u.selected_file < len(u.files) {
                 u.selected_file++
+                if u.selected_file > u.last_file {
+                    u.first_file++
+                    u.last_file++
+                }
             }
 
             u.update_files_text()
@@ -171,21 +184,24 @@ func (u *UI) update_files_text() {
     strs := []string{}
     
     for i, f := range u.files {
-        path := strings.Join(f.GetDisplayPath(), "/")
-        if i == u.selected_file {
-            strs = append(strs, "[[::] " + path + "](fg-green)")
-        } else {
-            strs = append(strs, "[[  ] " + path + "](fg-red)")
+        if i >= u.first_file && i <= u.last_file {
+            path := strings.Join(f.GetDisplayPath(), "/")
+            if i == u.selected_file {
+                strs = append(strs, "[[::] " + path + "](fg-green)")
+            } else {
+                strs = append(strs, "[[  ] " + path + "](fg-red)")
+            }
         }
     }
-    if u.selected_file == len(u.files) {
-        strs = append(strs, "[[::] all](fg-green)")
-    } else {
-        strs = append(strs, "[[  ] all](fg-red)")
+    if u.selected_file > len(u.files) - 6 {
+        if u.selected_file == len(u.files) {
+            strs = append(strs, "[[::] all](fg-green)")
+        } else {
+            strs = append(strs, "[[  ] all](fg-red)")
+        }
     }
 
     u.files_list.Items = strs
-    u.files_list.Height = len(strs) + 2
 }
 
 func (u *UI) SelectFile(files []*file.File, file_chan chan int) {

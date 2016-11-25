@@ -169,7 +169,7 @@ func (t *Torrent) SelectFile() {
 	t.ui.SelectFile(t.files, file_chan)
 
 	file_index := <- file_chan
-	fmt.Println(file_index)
+	
 	if file_index < len(t.files) {
 		f := t.files[file_index]
 		f.SetDownloadable(true)
