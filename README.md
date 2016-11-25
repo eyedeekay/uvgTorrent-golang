@@ -31,5 +31,3 @@ go run "magnet:magneturlgoeshere"
 If you want to read up on the torrent protocol start here:
     - https://wiki.theory.org/BitTorrentSpecification
     - http://bittorrent.org/beps/bep_0003.html
-
-## technical description
