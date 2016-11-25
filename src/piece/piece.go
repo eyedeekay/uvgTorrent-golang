@@ -3,8 +3,7 @@ package piece
 import (
 	"../chunk"
 	"../file"
-	"config"
-	"fmt"
+	"../config"
 	"math"
 	"crypto/sha1"
 )
@@ -168,7 +167,7 @@ func (p *Piece) Verify() bool {
 
 		data := make([]byte, total_len)
 		index := 0
-		fmt.Println(p.index)
+
 		for _, ch := range p.chunks {
 			length := int(ch.GetLength())
 			copy(data[index:index+length], ch.GetData())
@@ -179,8 +178,6 @@ func (p *Piece) Verify() bool {
 		h.Write(data)
 		hash := h.Sum(nil)
 
-		fmt.Println(hash)
-		fmt.Println(p.hash)
 		if string(hash) == string(p.hash) {
 			p.valid = true
 			p.Write(data)
