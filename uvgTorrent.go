@@ -2,15 +2,16 @@ package main
 
 import (
 	"./src/torrent"
+    "./src/ui"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/fatih/color"
 )
 
 func main() {
-	color.Red("                                                                                                    ")
+	/*
+    color.Red("                                                                                                    ")
     color.Red("  ▄• ▄▌ ▌ ▐· ▄▄ • ▄▄▄▄▄      ▄▄▄  ▄▄▄  ▄▄▄ . ▐ ▄ ▄▄▄▄▄     ▄▄▄·▄▄▄  ▄▄▄ ..▄▄ · ▄▄▄ . ▐ ▄ ▄▄▄▄▄.▄▄ · ")
     color.Red("  █▪██▌▪█·█▌▐█ ▀ ▪•██  ▪     ▀▄ █·▀▄ █·▀▄.▀·•█▌▐█•██      ▐█ ▄█▀▄ █·▀▄.▀·▐█ ▀. ▀▄.▀·•█▌▐█•██  ▐█ ▀. ")
     color.Red("  █▌▐█▌▐█▐█•▄█ ▀█▄ ▐█.▪ ▄█▀▄ ▐▀▀▄ ▐▀▀▄ ▐▀▀▪▄▐█▐▐▌ ▐█.▪     ██▀·▐▀▀▄ ▐▀▀▪▄▄▀▀▀█▄▐▀▀▪▄▐█▐▐▌ ▐█.▪▄▀▀▀█▄")
@@ -19,6 +20,7 @@ func main() {
     color.Red("                                                                                                    ")
     color.Blue("  ██████████████████████████████████████████████████████████████████████████████████████████████████")
     color.Red("                                                                                                    ")
+    */
 
 	t := torrent.NewTorrent(os.Args[1])
 
@@ -30,8 +32,11 @@ func main() {
 		os.Exit(0)
 	}()
 
-	color.Green(fmt.Sprintf("  %s ", t.Name))
-	fmt.Println()
+	// color.Green(fmt.Sprintf("  %s ", t.Name))
+	// fmt.Println()
+
+    ui := ui.NewUI()
+    ui.Init()
 
 	t.ConnectTrackers()
 	t.AnnounceTrackers()
