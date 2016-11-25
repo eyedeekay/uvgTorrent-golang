@@ -213,7 +213,7 @@ func (u *UI) update_files_text() {
 }
 
 func (u *UI) SelectFile(files []*file.File, file_chan chan int) {
-    u.gauge.Label = ""
+    u.gauge.Label = "Selecting file to view..."
     u.key.Text = "  [up    -> file list up](fg-cyan) \n  [down  -> file list down](fg-cyan) \n  [enter -> start download](fg-cyan) \n  [v     -> open video in vlc](fg-red) \n  [q     -> quit](fg-cyan)"
 
     u.file_chan = file_chan
