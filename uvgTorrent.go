@@ -20,13 +20,19 @@ func main() {
 		os.Exit(0)
 	}()
 
-	t.ConnectTrackers()
-	t.AnnounceTrackers()
-    
+    go run(t)
+	
     ui := ui.NewUI()
+    t.SetUI(ui)
     ui.Init(t.Name, t.Trackers)
 
-	t.Run() // loop through peers forever handling messages
+    t.Close()
+}
+
+func run(t *torrent.Torrent) {
+    t.ConnectTrackers()
+    t.AnnounceTrackers()
+    t.Run()
 }
 
 func cleanup(t *torrent.Torrent) {

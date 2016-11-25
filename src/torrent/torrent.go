@@ -5,15 +5,13 @@ import (
 	"../peer"
 	"../piece"
 	"../tracker"
+	"../ui"
+
 	"encoding/hex"
 	"fmt"
 	"github.com/zeebo/bencode"
-	"github.com/fatih/color"
 	"net/url"
 	"strings"
-
-    "os"
-    "os/exec"
 )
 
 type Torrent struct {
@@ -27,6 +25,8 @@ type Torrent struct {
 	
 	files         	   []*file.File
 	pieces        	   []*piece.Piece
+
+	ui 				   *ui.UI
 }
 
 func NewTorrent(magnet_uri string) *Torrent {
@@ -118,7 +118,7 @@ func (t *Torrent) Run() {
 				if len(t.pieces) > 0 {
 					for i, p := range t.pieces {
 						completed, total, success := p.ChunksCount()
-
+				
 						if completed > 0 {
 							fmt.Println(i, "completed, total", completed, total, success)
 						}
@@ -159,62 +159,10 @@ func (t *Torrent) ParseMetadata(data []byte) {
 }
 
 func (t *Torrent) SelectFile() {
-	up := []byte{65,91}
-	down := []byte{66,91}
-	enter := []byte{10,0}
+	file_chan := make(chan int)
+	t.ui.SelectFile(t.files, file_chan)
 
-	// disable input buffering
-    exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
-    // do not display entered characters on the screen
-    exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
-    // restore the echoing state when exiting
-    defer exec.Command("stty", "-F", "/dev/tty", "echo").Run()
-
-	file_index := 0
-	menu_showing := true
-
-	c := color.New(color.FgGreen)
-
-	for menu_showing {
-		for i, f := range t.files {
-			path := strings.Join(f.GetPath(), "/")
-			if i == file_index {
-				c.Println("::", path)
-			} else {
-				fmt.Println("  ", path)
-			}
-		}
-		if file_index == len(t.files) {
-			c.Println("::", "all")
-		} else {
-			fmt.Println("  ", "all")
-		}
-		
-		var b []byte = make([]byte, 2)
-	    for {
-	        os.Stdin.Read(b)
-	        if string(b) == string(enter) {
-	        	menu_showing = false
-	        	break
-	        } else if string(b) == string(up) {
-	        	if file_index > 0 {
-		        	file_index--
-		        	break
-	        	}
-	        } else if string(b) == string(down) {
-	        	if file_index < len(t.files) {
-		        	file_index++
-		        	break
-	        	}
-	        }
-	    }
-
-	    if menu_showing == true {
-	    	clear_menu_cmd := fmt.Sprintf("\033[%dA\r", int(len(t.files) + 2))
-	    	fmt.Println(clear_menu_cmd)
-	    }
-	}
-
+	file_index := <- file_chan
 	if file_index < len(t.files) {
 		f := t.files[file_index]
 		f.SetDownloadable(true)
@@ -230,6 +178,10 @@ func (t *Torrent) SelectFile() {
 			pi.SetDownloadable(true)
 		}
 	}
+}
+
+func (t *Torrent) SetUI(u *ui.UI) {
+	t.ui = u
 }
 
 func (t *Torrent) Close() {
