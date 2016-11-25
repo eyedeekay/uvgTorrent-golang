@@ -4,7 +4,7 @@ uvgTorrent-golang is an educational torrent streaming client built with golang. 
 
 Besides demonstrating the basics of the torrent protocol uvgTorrent also shows off just how well suited golang is for high concurrency, network heavy programs. Golang's built in concurrency support makes it easy to handle communication with each peer in a seperate goroutine, using channels to orchastrate loading metadata, dividing pieces between the peers for download, downloading the pieces, and saving them to the harddrive.
 
-I intend to use this project as the foundation of a tutorial serious, so if you have any recomendations or feedback, give me a shout at smnbursten@gmail.com
+I intend to use this project as the foundation of a tutorial series, so if you have any recomendations or feedback, give me a shout at smnbursten@gmail.com
 
 ## branches
 
