@@ -117,6 +117,10 @@ func (t *Torrent) Run() {
 
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
+				// allow the peer to lay claim to an available chunk
+				p.ClaimChunk(t.pieces)
+
+				// update ui percent bar
 				if len(t.pieces) > 0 {
 					completed_chunks := 0
 					total_chunks := 0
@@ -132,7 +136,6 @@ func (t *Torrent) Run() {
 					t.ui.SetPercent(completed_chunks, total_chunks)
 				}
 
-				p.ClaimChunk(t.pieces)
 		}
 	}
 }
