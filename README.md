@@ -23,7 +23,7 @@ If you want to take a look at the simplest working version of the code take a lo
 #!/bin/bash
 
 export GOPATH=/absolute/path/to/uvgTorrent-golang/
-go run uvgTorrent.go "magnet:magneturlgoeshere"
+go run uvgTorrent.go "magnet:magneturigoeshere"
 ```
 
 ## torrent protocol background
