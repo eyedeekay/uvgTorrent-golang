@@ -4,6 +4,7 @@ import (
     "strings"
     "os/exec"
     "strconv"
+    "runtime"
 
     "github.com/gizak/termui"
 
@@ -164,9 +165,15 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
         if u.file_selected == true {
             f := u.files[u.selected_file]
 
-            path := strings.Join(f.GetPath(), "/")
-            cmd := exec.Command("vlc", path, "&")
-            cmd.Run()
+            if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
+                path := strings.Join(f.GetPath(), "\\")
+                cmd := exec.Command("START", "\"C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe\"", path)
+                cmd.Run()
+            } else {
+                path := strings.Join(f.GetPath(), "/")
+                cmd := exec.Command("vlc", path, "&")
+                cmd.Run()
+            }
         }
     })
 
