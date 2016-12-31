@@ -262,7 +262,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -281,6 +281,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
 
+		p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 		for int32(message_bytes_read) < msg_length {
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
