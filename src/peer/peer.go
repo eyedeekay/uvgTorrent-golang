@@ -113,10 +113,8 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 
 // establish a connection with the peer
 func (p *Peer) Connect() {
-	timeOut := time.Duration(10) * time.Second
-
 	var err error
-	p.connection, err = net.DialTimeout("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port), timeOut)
+	p.connection, err = net.Dial("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port))
 	if err != nil {
 		p.closed = true
 		return
