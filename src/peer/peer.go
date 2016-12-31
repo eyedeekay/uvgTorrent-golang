@@ -244,6 +244,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			if p.chunk.GetStatus() != chunk.ChunkStatusDone {
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
+				p.Close()
 			} else if p.IsConnected() && p.chunk.GetStatus() == chunk.ChunkStatusDone {
 				p.GetChunkFromTorrent(request_chunk)
 			}
@@ -264,7 +265,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(10 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -282,13 +283,13 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	if msg_length > 0 && msg_length < int32(config.ChunkSize+10000) {
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
+
 		for int32(message_bytes_read) < msg_length {
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
 				if err == io.EOF {
 					p.Close()
 				}
-
 				return
 			}
 			message_bytes_read += n
