@@ -244,7 +244,6 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			if p.chunk.GetStatus() != chunk.ChunkStatusDone {
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
-				p.Close()
 			} else if p.IsConnected() && p.chunk.GetStatus() == chunk.ChunkStatusDone {
 				p.GetChunkFromTorrent(request_chunk)
 			}
