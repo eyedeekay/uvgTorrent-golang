@@ -25,6 +25,7 @@ type Peer struct {
 	ut_metadata              int64
 	metadata_size            int64
 	metadata_requested       bool
+	sent_chunk_req			 bool
 	metadata_chunks_received int64
 	metadata                 []byte
 	bitfield                 *bitfield.Bitfield
@@ -42,6 +43,7 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.closed = false
 	p.connected = false
 	p.handshaked = false
+	p.sent_chunk_req = false
 	p.ut_metadata = 0
 	p.metadata_size = 0
 	p.metadata_chunks_received = 0
@@ -157,19 +159,22 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	}
 
 	if p.IsConnected() && p.handshaked {
-		sent_chunk_req := false
-		if p.chunk != nil {
-			sent_chunk_req = true
+		if p.chunk != nil && p.sent_chunk_req == false {
 			p.SendChunkRequest()
+			p.sent_chunk_req = true
 		}
-		p.HandleMessage(metadata, request_chunk)
+		err := p.HandleMessage(metadata, request_chunk)
 
-		if sent_chunk_req == true && p.chunk != nil {
-			if p.chunk.GetStatus() != chunk.ChunkStatusDone {
+		if p.sent_chunk_req == true && p.chunk != nil {
+			if err == true {
+				fmt.Println(p.ip, "failed to get chunk")
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
+				time.Sleep(30)
+				p.GetChunkFromTorrent(request_chunk)
 			} else if p.IsConnected() && p.chunk.GetStatus() == chunk.ChunkStatusDone {
 				p.GetChunkFromTorrent(request_chunk)
+				p.sent_chunk_req = false
 			}
 		}
 	}
@@ -209,28 +214,31 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 }
 
 func (p *Peer) SendChunkRequest() {
-	chunk_size := int64(config.ChunkSize)
-	msg_length := int32(13)
-	msg_id := int8(6)
+	if p.sent_chunk_req == false {
+		chunk_size := int64(config.ChunkSize)
+		msg_length := int32(13)
+		msg_id := int8(6)
 
-	index := int32(p.chunk.GetPieceIndex())
-	begin := int32(chunk_size * p.chunk.GetIndex())
-	piece_length := int32(p.chunk.GetLength())
+		index := int32(p.chunk.GetPieceIndex())
+		begin := int32(chunk_size * p.chunk.GetIndex())
+		piece_length := int32(p.chunk.GetLength())
 
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, msg_length)
-	binary.Write(&buff, binary.LittleEndian, msg_id)
-	binary.Write(&buff, binary.BigEndian, index)
-	binary.Write(&buff, binary.BigEndian, begin)
-	binary.Write(&buff, binary.BigEndian, piece_length)
-	p.connection.Write(buff.Bytes())
+		var buff bytes.Buffer
+		binary.Write(&buff, binary.BigEndian, msg_length)
+		binary.Write(&buff, binary.LittleEndian, msg_id)
+		binary.Write(&buff, binary.BigEndian, index)
+		binary.Write(&buff, binary.BigEndian, begin)
+		binary.Write(&buff, binary.BigEndian, piece_length)
+		p.connection.Write(buff.Bytes())
+		p.sent_chunk_req = true
+	}
 }
 
-func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
+func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) bool {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(20 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -239,7 +247,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 				p.Close()
 			}
 
-			return
+			return true
 		}
 		length_bytes_read += n
 	}
@@ -256,7 +264,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 					p.Close()
 				}
 
-				return
+				return true
 			}
 			message_bytes_read += n
 		}
@@ -314,7 +322,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			if handshake_id == 0 {
 				var torrent map[string]interface{}
 				if err := bencode.DecodeBytes(message[2:], &torrent); err != nil {
-					return
+					return true
 				}
 				if torrent["metadata_size"] != nil {
 					p.metadata_size = torrent["metadata_size"].(int64)
@@ -345,10 +353,14 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			}
 		} else {
 			p.Close()
+			return true
 		}
 	} else {
 		p.Close()
+		return true
 	}
+
+	return false
 }
 
 func (p *Peer) MetadataLoaded() bool {
