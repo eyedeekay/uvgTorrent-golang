@@ -165,7 +165,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		}
 		err := p.HandleMessage(metadata, request_chunk)
 
-		if p.sent_chunk_req == true && p.chunk != nil {
+		if p.chunk != nil {
 			if err == true {
 				fmt.Println(p.ip, "failed to get chunk")
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
@@ -238,7 +238,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(20 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -288,6 +288,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 
 		if msg_id == MSG_CHOKE {
 			p.isChoked = true
+			return true
 		} else if msg_id == MSG_UNCHOKE {
 			p.isChoked = false
 			p.GetChunkFromTorrent(request_chunk)
