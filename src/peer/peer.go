@@ -96,7 +96,7 @@ func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
 // next available chunk in the main goroutine, unblocking
 // the peer
 func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
-	if p.IsChoked() == false {
+	if p.IsChoked() == false && p.connected && p.handshaked {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
