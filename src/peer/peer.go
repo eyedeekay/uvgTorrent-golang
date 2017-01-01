@@ -196,7 +196,7 @@ func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
 }
 
 func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
-	if p.IsChoked() == false {
+	if p.IsChoked() == false && p.connected && p.handshaked {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.GetDownloadable() == true {
@@ -311,9 +311,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 					if len(data) == int(p.chunk.GetLength()) {
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
+						return false
 					}
 				}
 			}
+			return true
 		} else if msg_id == MSG_CANCEL {
 		} else if msg_id == MSG_PORT {
 		} else if msg_id == MSG_METADATA {
@@ -352,6 +354,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 					p.GetChunkFromTorrent(request_chunk)
 				}
 			}
+			return true
 		} else {
 			p.Close()
 			return true
