@@ -100,7 +100,7 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
-				if int64(i) < p.bitfield.Size() && p.bitfield.GetBit(i) {
+				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
 					ch := pi.GetNextChunk()
 
 					if ch != nil {
@@ -238,10 +238,11 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	if p.IsConnected() && p.handshaked {
 		if p.chunk != nil && p.sent_chunk_req == false {
 			p.SendChunkRequest()
+			p.sent_chunk_req = true
 		}
 		err := p.HandleMessage(metadata, request_chunk)
 
-		if p.sent_chunk_req == true && p.chunk != nil {
+		if p.chunk != nil {
 			if err == true {
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
@@ -249,6 +250,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 				p.GetChunkFromTorrent(request_chunk)
 			} else if p.IsConnected() && p.chunk.GetStatus() == chunk.ChunkStatusDone {
 				p.GetChunkFromTorrent(request_chunk)
+				p.sent_chunk_req = false
 			}
 		}
 	}
@@ -267,7 +269,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(60 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -339,9 +341,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 					if len(data) == int(p.chunk.GetLength()) {
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
+						return false
 					}
 				}
 			}
+			return true
 		} else if msg_id == MSG_CANCEL {
 		} else if msg_id == MSG_PORT {
 		} else if msg_id == MSG_METADATA {
@@ -380,6 +384,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 					p.GetChunkFromTorrent(request_chunk)
 				}
 			}
+			return true
 		} else {
 			p.Close()
 			return true
