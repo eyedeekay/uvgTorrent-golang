@@ -238,26 +238,19 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 	if p.IsConnected() && p.handshaked {
 		if p.chunk != nil && p.sent_chunk_req == false {
 			p.SendChunkRequest()
-			p.sent_chunk_req = true
 		}
 		err := p.HandleMessage(metadata, request_chunk)
 
 		if p.chunk != nil {
 			if err == true {
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
-				p.chunk = nil
-				time.Sleep(30)
-				p.GetChunkFromTorrent(request_chunk)
-			} else if p.IsConnected() && p.chunk.GetStatus() == chunk.ChunkStatusDone {
-				p.GetChunkFromTorrent(request_chunk)
-				p.sent_chunk_req = false
 			}
 		}
 	}
 
 	if p.connected && p.handshaked {
 		// sleep provides a small window for graceful shutdown
-		// and to allow golang to switch between goroutines
+		// and to allow golang to switc hbetween goroutines
 		// remove it and the program gets choppy
 		time.Sleep(5 * time.Millisecond)
 		go p.Run(hash, metadata, request_chunk)
@@ -341,10 +334,13 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 					if len(data) == int(p.chunk.GetLength()) {
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
+						p.chunk = nil
+						p.GetChunkFromTorrent(request_chunk)
 						return false
 					}
 				}
 			}
+			p.GetChunkFromTorrent(request_chunk)
 			return true
 		} else if msg_id == MSG_CANCEL {
 		} else if msg_id == MSG_PORT {
