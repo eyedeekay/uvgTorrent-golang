@@ -99,7 +99,7 @@ func (t *Torrent) Run() {
 	// chan for delivering metadata to the torrent object
 	metadata := make(chan []byte, 500)
 	// chan for requesting the next available chunk of the torrent for a given peer to request
-	request_chunk := make(chan *peer.Peer, 500)
+	request_chunk := make(chan *peer.Peer)
 
 	for _, track := range t.Trackers {
 		if track.IsConnected() {
