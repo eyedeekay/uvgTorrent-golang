@@ -80,7 +80,7 @@ func (p *Peer) CanRequestMetadata() bool {
 // available chunk belonging to a piece this peer has available
 // for download
 func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
-	if p.IsMetadataLoaded() && p.IsChoked() == false {
+	if p.IsMetadataLoaded() && p.IsChoked() == false && p.connected && p.handshaked {
 		// ask the torrent to call ClaimChunk at the next available opportunity
 		request_chunk <- p
 		select {
@@ -239,12 +239,15 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		if p.chunk != nil && p.sent_chunk_req == false {
 			p.SendChunkRequest()
 		}
-		err := p.HandleMessage(metadata, request_chunk)
+		err, req_chunk := p.HandleMessage(metadata, request_chunk)
 
-		if p.chunk != nil {
-			if err == true {
+		if err == true {
+			if p.chunk != nil {
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 			}
+		}
+		if req_chunk {
+			p.GetChunkFromTorrent(request_chunk)
 		}
 	}
 
@@ -258,20 +261,21 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 }
 
 // attempt to handle a message from the peer
-func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) bool {
+func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bool, bool) {
+	// timed_out := false
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(120 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
 			if err == io.EOF {
 				p.Close()
+				return true, false
 			}
-
-			return true
+			return true, false
 		}
 		length_bytes_read += n
 	}
@@ -286,8 +290,9 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 			if err != nil {
 				if err == io.EOF {
 					p.Close()
+					return true, false
 				}
-				return true
+				return true, false
 			}
 			message_bytes_read += n
 		}
@@ -311,10 +316,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 
 		if msg_id == MSG_CHOKE {
 			p.choked = true
-			return true
+			return true, false
 		} else if msg_id == MSG_UNCHOKE {
 			p.choked = false
-			p.GetChunkFromTorrent(request_chunk)
+			return false, true
 		} else if msg_id == MSG_INTERESTED {
 		} else if msg_id == MSG_NOT_INTERESTED {
 		} else if msg_id == MSG_HAVE {
@@ -335,13 +340,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
 						p.chunk = nil
-						p.GetChunkFromTorrent(request_chunk)
-						return false
+						return false, true
 					}
 				}
 			}
-			p.GetChunkFromTorrent(request_chunk)
-			return true
+			return true, true
 		} else if msg_id == MSG_CANCEL {
 		} else if msg_id == MSG_PORT {
 		} else if msg_id == MSG_METADATA {
@@ -351,7 +354,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 			if handshake_id == 0 {
 				var torrent map[string]interface{}
 				if err := bencode.DecodeBytes(message[2:], &torrent); err != nil {
-					return true
+					return true, false
 				}
 				if torrent["metadata_size"] != nil {
 					p.metadata_size = torrent["metadata_size"].(int64)
@@ -377,19 +380,19 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) boo
 
 				if p.IsMetadataLoaded() {
 					metadata <- p.metadata
-					p.GetChunkFromTorrent(request_chunk)
+					return false, true
 				}
 			}
-			return true
+			return false, false
 		} else {
-			p.Close()
-			return true
+			//p.Close()
+			return true, false
 		}
 	} else {
-		p.Close()
-		return true
+		//p.Close()
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 func (p *Peer) Close() {
