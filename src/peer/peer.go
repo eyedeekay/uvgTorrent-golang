@@ -119,7 +119,7 @@ func (p *Peer) Connect() {
 	var err error
 	p.connection, err = net.Dial("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port))
 	if err != nil {
-		p.closed = true
+		// p.closed = true
 		return
 	}
 
