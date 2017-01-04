@@ -202,7 +202,7 @@ func (p *Peer) SendChunkRequest() {
 		binary.Write(&buff, binary.BigEndian, piece_length)
 		p.connection.Write(buff.Bytes())
 		p.sent_chunk_req = true
-		p.Log("sent chunk request")
+		p.Log(fmt.Sprintf("sent chunk request :: %v", begin))
 	}
 }
 
@@ -356,11 +356,21 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 				data := message[9:]
 				if p.chunk != nil {
 					if len(data) == int(p.chunk.GetLength()) {
-						p.chunk.SetData(data)
-						p.chunk.SetStatus(chunk.ChunkStatusDone)
-						p.chunk = nil
-						p.Log("GOT PIECE")
-						return false, true
+						chunk_size := int64(config.ChunkSize)
+						begin := int32(chunk_size * p.chunk.GetIndex())
+
+						var start int32
+						binary.Read(bytes.NewBuffer(message[5:]), binary.BigEndian, &start)
+						if start == begin {
+							p.chunk.SetData(data)
+							p.chunk.SetStatus(chunk.ChunkStatusDone)
+							p.chunk = nil
+							p.Log(fmt.Sprintf("GOT PIECE :: %v", start))
+							return false, true
+						} else {
+							p.Log("GOT WRONG PIECE")
+							return false, false
+						}
 					}
 				}
 			}
