@@ -274,7 +274,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(120 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -285,7 +285,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 				return true, false
 			}
 			p.Log("timeout 1")
-			return true, false
+			return true, true
 		}
 		length_bytes_read += n
 	}
@@ -300,10 +300,10 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 			if err != nil {
 				if err == io.EOF {
 					p.Log("eof 2")
-					p.Close()
-					return true, false
+				} else {
+					p.Log("timeout 2")
 				}
-				p.Log("timeout 2")
+				p.Close()
 				return true, false
 			}
 			message_bytes_read += n
@@ -359,13 +359,13 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 						p.chunk.SetData(data)
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
 						p.chunk = nil
-						return false, true
 						p.Log("GOT PIECE")
+						return false, true
 					}
 				}
 			}
 			p.Log("FAILED GOT PIECE")
-			return true, true
+			return true, false
 		} else if msg_id == MSG_CANCEL {
 			p.Log("MSG_CANCEL")
 		} else if msg_id == MSG_PORT {
@@ -431,8 +431,9 @@ func (p *Peer) Close() {
 	p.metadata_size = 0
 	p.metadata_chunks_received = 0
 	p.metadata_requested = false
-	p.closed = false
 	p.connection.Close()
+	p.connection = nil
+	p.closed = false
 }
 
 func (p *Peer) Log(msg string) {
