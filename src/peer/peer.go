@@ -442,7 +442,6 @@ func (p *Peer) Close() {
 	p.metadata_chunks_received = 0
 	p.metadata_requested = false
 	p.connection.Close()
-	p.connection = nil
 	p.closed = false
 }
 
