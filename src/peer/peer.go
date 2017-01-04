@@ -13,6 +13,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"log"
 )
 
 type Peer struct {
@@ -123,6 +124,7 @@ func (p *Peer) Connect() {
 	}
 
 	p.connected = true
+	p.Log("connected")
 }
 
 // send extended handshake to peer
@@ -145,9 +147,10 @@ func (p *Peer) Handshake(hash []byte) {
 	p.connection.Write(buff.Bytes())
 
 	result := make([]byte, 68)
-	p.connection.SetReadDeadline(time.Now().Add(60 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, err := p.connection.Read(result)
 	if err != nil {
+		p.Log("failed handshake")
 		return
 	}
 
@@ -163,6 +166,7 @@ func (p *Peer) Handshake(hash []byte) {
 	p.connection.Write(buff.Bytes())
 
 	p.SendInterested()
+	p.Log("handhsake success")
 }
 
 // tell the peer i'm looking for pieces
@@ -198,6 +202,7 @@ func (p *Peer) SendChunkRequest() {
 		binary.Write(&buff, binary.BigEndian, piece_length)
 		p.connection.Write(buff.Bytes())
 		p.sent_chunk_req = true
+		p.Log("sent chunk request")
 	}
 }
 
@@ -218,6 +223,7 @@ func (p *Peer) RequestMetadata() {
 		binary.Write(&buff, binary.BigEndian, int8(p.ut_metadata))
 		binary.Write(&buff, binary.BigEndian, []byte(bencoded_message))
 		p.connection.Write(buff.Bytes())
+		p.Log("sent metadata")
 	}
 }
 
@@ -243,21 +249,23 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 
 		if err == true {
 			if p.chunk != nil {
+				p.Log("failed to get chunk")
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 			}
 		}
 		if req_chunk {
+			p.Log("getting next chunk")
 			p.GetChunkFromTorrent(request_chunk)
 		}
 	}
 
-	if p.connected && p.handshaked {
+	//if p.connected && p.handshaked {
 		// sleep provides a small window for graceful shutdown
 		// and to allow golang to switc hbetween goroutines
 		// remove it and the program gets choppy
 		time.Sleep(5 * time.Millisecond)
 		go p.Run(hash, metadata, request_chunk)
-	}
+	//}
 }
 
 // attempt to handle a message from the peer
@@ -272,9 +280,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
 		if err != nil {
 			if err == io.EOF {
+				p.Log("eof 1")
 				p.Close()
 				return true, false
 			}
+			p.Log("timeout 1")
 			return true, false
 		}
 		length_bytes_read += n
@@ -289,9 +299,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
 				if err == io.EOF {
+					p.Log("eof 2")
 					p.Close()
 					return true, false
 				}
+				p.Log("timeout 2")
 				return true, false
 			}
 			message_bytes_read += n
@@ -315,21 +327,28 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 		binary.Read(bytes.NewBuffer(message[0:1]), binary.BigEndian, &msg_id)
 
 		if msg_id == MSG_CHOKE {
+			p.Log("MSG_CHOKE")
 			p.choked = true
 			return true, false
 		} else if msg_id == MSG_UNCHOKE {
+			p.Log("MSG_UNCHOKE")
 			p.choked = false
 			return false, true
 		} else if msg_id == MSG_INTERESTED {
+			p.Log("MSG_INTERESTED")
 		} else if msg_id == MSG_NOT_INTERESTED {
+			p.Log("MSG_NOT_INTERESTED")
 		} else if msg_id == MSG_HAVE {
+			p.Log("MSG_HAVE")
 			var have_bit int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &have_bit)
 
 			p.bitfield.SetBit(int(have_bit))
 		} else if msg_id == MSG_BITFIELD {
+			p.Log("MSG_BITFIELD")
 			p.bitfield.Copy(message[1:])
 		} else if msg_id == MSG_REQUEST {
+			p.Log("MSG_REQUEST")
 		} else if msg_id == MSG_PIECE {
 			var piece_index int32
 			binary.Read(bytes.NewBuffer(message[1:]), binary.BigEndian, &piece_index)
@@ -341,12 +360,16 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 						p.chunk.SetStatus(chunk.ChunkStatusDone)
 						p.chunk = nil
 						return false, true
+						p.Log("GOT PIECE")
 					}
 				}
 			}
+			p.Log("FAILED GOT PIECE")
 			return true, true
 		} else if msg_id == MSG_CANCEL {
+			p.Log("MSG_CANCEL")
 		} else if msg_id == MSG_PORT {
+			p.Log("MSG_PORT")
 		} else if msg_id == MSG_METADATA {
 			var handshake_id int8
 			binary.Read(bytes.NewBuffer(message[1:2]), binary.BigEndian, &handshake_id)
@@ -377,30 +400,41 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 				copy(p.metadata[p.metadata_chunks_received*metadata_piece_size:], message[md_pos:])
 
 				p.metadata_chunks_received++
+				p.Log("MSG_METADATA")
 
 				if p.IsMetadataLoaded() {
+					p.Log("METADATA_LOADED")
 					metadata <- p.metadata
 					return false, true
 				}
 			}
 			return false, false
 		} else {
-			//p.Close()
+			p.Log("bad msg")
+			p.Close()
 			return true, false
 		}
 	} else {
-		//p.Close()
+		p.Log("bad msg len")
+		p.Close()
 		return true, false
 	}
+	p.Log("end")
 	return false, false
 }
 
 func (p *Peer) Close() {
+	p.Log("Close")
 	p.connected = false
 	p.handshaked = false
 	p.ut_metadata = 0
 	p.metadata_size = 0
+	p.metadata_chunks_received = 0
 	p.metadata_requested = false
-	p.closed = true
+	p.closed = false
 	p.connection.Close()
+}
+
+func (p *Peer) Log(msg string) {
+	log.Output(1, fmt.Sprintf("%s :: %s\n", p.ip, msg))
 }

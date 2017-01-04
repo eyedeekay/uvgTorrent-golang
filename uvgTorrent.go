@@ -7,9 +7,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+    "log"
 )
 
 func main() {
+    // open a file
+    f, err := os.OpenFile("uvgTorrent.log", os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
+    if err != nil {
+      fmt.Printf("error opening file: %v", err)
+    }
+
+    // don't forget to close it
+    defer f.Close()
+    
+    // assign it to the standard logger
+    log.SetOutput(f)
+
 	t := torrent.NewTorrent(os.Args[1])
 
 	c := make(chan os.Signal, 2)
