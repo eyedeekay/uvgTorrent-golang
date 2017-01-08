@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
     "log"
-    "io/ioutil"
 )
 
 func main() {
@@ -22,8 +21,8 @@ func main() {
     defer f.Close()
     
     // assign it to the standard logger
-    //log.SetOutput(f)
-    log.SetOutput(ioutil.Discard)
+    log.SetOutput(f)
+    //log.SetOutput(ioutil.Discard)
 
 	t := torrent.NewTorrent(os.Args[1])
 

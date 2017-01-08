@@ -200,9 +200,10 @@ func (p *Peer) SendChunkRequest() {
 		binary.Write(&buff, binary.BigEndian, index)
 		binary.Write(&buff, binary.BigEndian, begin)
 		binary.Write(&buff, binary.BigEndian, piece_length)
-		p.connection.Write(buff.Bytes())
+		n, err := p.connection.Write(buff.Bytes())
 		p.sent_chunk_req = true
-		p.Log(fmt.Sprintf("sent chunk request :: %v", begin))
+		p.Log(fmt.Sprintf("sent chunk request :: %v len %v :: piece %v", begin, piece_length, index))
+		p.Log(fmt.Sprintf("sent len %v err %v", n, err))
 	}
 }
 

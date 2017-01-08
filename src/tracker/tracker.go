@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"time"
+	"log"
 )
 
 type Tracker struct {
@@ -178,6 +179,15 @@ func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *pee
 	for _, p := range t.peers {
 		go p.Run(hash, metadata, request_chunk)
 	}
+
+	time.Sleep(time.Duration(t.interval) * time.Second)
+	announce_status := make(chan bool)
+	go t.Connect(announce_status)
+	<-announce_status
+	go t.Announce(hash, announce_status)
+	<-announce_status
+	log.Output(1, "TRACKER UPDATED")
+	go t.Run(hash, metadata, request_chunk)
 }
 
 func (t *Tracker) GetUrl() string {
