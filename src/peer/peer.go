@@ -40,6 +40,7 @@ type Peer struct {
 	chunk_chan 				 		chan *chunk.Chunk
 	// the chunk i'm currently working on
 	chunk      				 		*chunk.Chunk
+	get_chunk 						bool
 }
 
 func NewPeer(ip net.IP, port uint16) *Peer {
@@ -85,9 +86,9 @@ func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
 		// ask the torrent to call ClaimChunk at the next available opportunity
 		request_chunk <- p
 		select {
-		case ch := <-p.chunk_chan:
-			p.chunk = ch
-			p.sent_chunk_req = false
+			case ch := <-p.chunk_chan:
+				p.chunk = ch
+				p.sent_chunk_req = false
 		}
 	}
 }
@@ -112,14 +113,18 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 			}
 		}
 	}
+
+	p.get_chunk = true
 }
 
 // establish a connection with the peer
 func (p *Peer) Connect() {
+	timeOut := time.Duration(30) * time.Second
+
 	var err error
-	p.connection, err = net.Dial("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port))
+	p.connection, err = net.DialTimeout("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port), timeOut)
 	if err != nil {
-		p.closed = true
+		//p.closed = true
 		return
 	}
 
@@ -147,9 +152,10 @@ func (p *Peer) Handshake(hash []byte) {
 	p.connection.Write(buff.Bytes())
 
 	result := make([]byte, 68)
-	p.connection.SetReadDeadline(time.Now().Add(2 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
 	_, err := p.connection.Read(result)
 	if err != nil {
+		p.Close()
 		p.Log("failed handshake")
 		return
 	}
@@ -166,7 +172,7 @@ func (p *Peer) Handshake(hash []byte) {
 	p.connection.Write(buff.Bytes())
 
 	p.SendInterested()
-	p.Log("handhsake success")
+	p.Log("handshake success")
 }
 
 // tell the peer i'm looking for pieces
@@ -255,6 +261,11 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			}
 		}
 		if req_chunk {
+			p.get_chunk = true
+		}
+		
+		if p.get_chunk == true {
+			p.get_chunk = false
 			p.Log("getting next chunk")
 			p.GetChunkFromTorrent(request_chunk)
 		}
@@ -275,7 +286,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -388,6 +399,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 			if handshake_id == 0 {
 				var torrent map[string]interface{}
 				if err := bencode.DecodeBytes(message[2:], &torrent); err != nil {
+					p.Close()
 					return true, false
 				}
 				if torrent["metadata_size"] != nil {

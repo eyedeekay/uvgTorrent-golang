@@ -28,12 +28,16 @@ type UI struct {
 
     first_file int
     last_file int
+    previous_completed int
+    speed int
+    refeshed bool
 }
 
 func NewUI() *UI {
     ui := &UI{}
     ui.first_file = 0
     ui.last_file = 6
+    ui.previous_completed = 0
 
     return ui
 }
@@ -237,13 +241,20 @@ func (u *UI) Refresh() {
     termui.Body.Align()
     termui.Clear()
     termui.Render(termui.Body)
+    u.refeshed = true
 }
 
 func (u *UI) SetPercent(completed int, total int) {
     var f float64 = float64(completed) / float64(total) * 100
     u.gauge.Percent = int(f)
-    u.gauge.Label = "{{percent}}% (" + strconv.FormatInt(int64(completed), 10) + " / " + strconv.FormatInt(int64(total), 10) + " chunks completed)"
+    u.gauge.Label = "{{percent}}% " + strconv.FormatInt(int64(u.speed), 10) + "kps (" + strconv.FormatInt(int64(completed), 10) + " / " + strconv.FormatInt(int64(total), 10) + " chunks completed)"
     if u.gauge.Percent >= 10 {
         u.key.Text = "  [up    -> file list up](fg-red) \n  [down  -> file list down](fg-red) \n  [enter -> start download](fg-red) \n  [v     -> open video in vlc](fg-cyan) \n  [q     -> quit](fg-cyan)"
+    }
+
+    if u.refeshed == true {
+        u.refeshed = false
+        u.speed = (completed - u.previous_completed) * 16
+        u.previous_completed = completed
     }
 }

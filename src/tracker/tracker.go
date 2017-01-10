@@ -60,7 +60,7 @@ func (t *Tracker) Connect(done chan bool) {
 		done <- false
 		return
 	}
-	t.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
+	t.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.BigEndian, uint64(0x41727101980))
@@ -129,7 +129,7 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
 	}
 
 	result := make([]byte, 2048)
-	t.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
+	t.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 	n, _, err = t.connection.ReadFromUDP(result)
 	if err != nil {
 		done <- false
