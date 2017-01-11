@@ -10,15 +10,20 @@ const (
 type Chunk struct {
 	index       int64
 	piece_index int64
+	length 		int64
 	status      int
 	data        []byte
 }
 
 func NewChunk(index int64, piece_index int64, length int64) *Chunk {
+	if length == 0 {
+		panic("00")
+	}
 	c := Chunk{}
 	c.index = index
 	c.piece_index = piece_index
 	c.data = make([]byte, length)
+	c.length = length
 
 	c.status = ChunkStatusReady
 
@@ -42,7 +47,7 @@ func (ch *Chunk) GetPieceIndex() int64 {
 }
 
 func (ch *Chunk) GetLength() int64 {
-	return int64(len(ch.data))
+	return ch.length
 }
 
 func (ch *Chunk) GetStatus() int {

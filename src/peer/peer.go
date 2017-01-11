@@ -257,8 +257,8 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		if err == true {
 			if p.chunk != nil {
 				p.Log("failed to get chunk")
-				piece_index := int(p.chunk.GetPieceIndex())
-				p.bitfield.SetBit(piece_index)
+				// piece_index := int(p.chunk.GetPieceIndex())
+				// p.bitfield.SetBit(piece_index)
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 			}
 		}
