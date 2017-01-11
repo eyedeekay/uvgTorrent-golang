@@ -257,20 +257,21 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		if err == true {
 			if p.chunk != nil {
 				p.Log("failed to get chunk")
+				piece_index := int(p.chunk.GetPieceIndex())
+				p.bitfield.SetBit(piece_index)
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 			}
 		}
-		if req_chunk {
-			p.get_chunk = true
-		}
 		
-		if p.get_chunk == true {
+		if req_chunk || p.get_chunk == true {
 			p.get_chunk = false
 			p.Log("getting next chunk")
 			p.GetChunkFromTorrent(request_chunk)
 		}
 	}
-
+	if !p.connected {
+		time.Sleep(60 * 5 * time.Second)
+	}
 	//if p.connected && p.handshaked {
 		// sleep provides a small window for graceful shutdown
 		// and to allow golang to switc hbetween goroutines
