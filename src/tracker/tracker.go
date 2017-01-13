@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 	"log"
+	"fmt"
 )
 
 type Tracker struct {
@@ -43,20 +44,25 @@ func (t *Tracker) IsConnected() bool {
 }
 
 func (t *Tracker) Connect(done chan bool) {
+	t.Log("connect start")
+
 	sAddr, err := net.ResolveUDPAddr("udp", t.url)
 	if err != nil {
+		t.Log("failed ResolveUDPAddr")
 		done <- false
 		return
 	}
 
 	cAddr, err := net.ResolveUDPAddr("udp", ":0")
 	if err != nil {
+		t.Log("failed local bind")
 		done <- false
 		return
 	}
 
 	t.connection, err = net.DialUDP("udp", cAddr, sAddr)
 	if err != nil {
+		t.Log("failed connect")
 		done <- false
 		return
 	}
@@ -69,6 +75,7 @@ func (t *Tracker) Connect(done chan bool) {
 
 	n, err := t.connection.Write(buf.Bytes())
 	if err != nil || n < len(buf.Bytes()) {
+		t.Log("failed connect write")
 		done <- false
 		return
 	}
@@ -76,6 +83,7 @@ func (t *Tracker) Connect(done chan bool) {
 	result := make([]byte, 16)
 	n, _, err = t.connection.ReadFromUDP(result)
 	if err != nil || n < len(result) {
+		t.Log("failed connect read")
 		done <- false
 		return
 	}
@@ -87,6 +95,7 @@ func (t *Tracker) Connect(done chan bool) {
 	if action == 0 && transaction_id == 123 {
 		t.connected = true
 	}
+	t.Log("connected")
 
 	done <- true
 }
@@ -124,6 +133,7 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
 
 	n, err := t.connection.Write(buf.Bytes())
 	if err != nil || n < len(buf.Bytes()) {
+		t.Log("announce write failed")
 		done <- false
 		return
 	}
@@ -132,14 +142,17 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
 	t.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 	n, _, err = t.connection.ReadFromUDP(result)
 	if err != nil {
+		t.Log("announce read failed")
 		done <- false
 		return
 	}
 
 	t.connection.Close()
 	if t.ParseAnnounceResponse(result) == true {
+		t.Log("announce parse success")
 		done <- true
 	} else {
+		t.Log("announce parse failed")
 		done <- false
 	}
 }
@@ -186,7 +199,7 @@ func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *pee
 	<-announce_status
 	go t.Announce(hash, announce_status)
 	<-announce_status
-	log.Output(1, "TRACKER UPDATED")
+	t.Log("tracker updated")
 	go t.Run(hash, metadata, request_chunk)
 }
 
@@ -200,4 +213,8 @@ func (t *Tracker) Close() {
 			p.Close()
 		}
 	}
+}
+
+func (t *Tracker) Log(msg string) {
+	log.Output(1, fmt.Sprintf("%s :: %s\n", t.url, msg))
 }

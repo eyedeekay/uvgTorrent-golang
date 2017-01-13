@@ -51,6 +51,8 @@ func NewPeer(ip net.IP, port uint16) *Peer {
 	p.bitfield = bitfield.NewBitfield(true, 1)
 	p.chunk_chan = make(chan *chunk.Chunk, 1)
 
+	p.Log("CREATED PEER")
+
 	return &p
 }
 
@@ -135,44 +137,54 @@ func (p *Peer) Connect() {
 // send extended handshake to peer
 // see: http://www.rasterbar.com/products/libtorrent/extension_protocol.html
 func (p *Peer) Handshake(hash []byte) {
-	// send regular handshake
-	var pstrlen int8
-	pstrlen = 19
-	pstr := "BitTorrent protocol"
-	reserved := [8]byte{0, 0, 0, 0, 0, 16, 0, 0}
-	peer_id := "UVG01234567891234567"
+	if p.IsConnected() {
+		// send regular handshake
+		var pstrlen int8
+		pstrlen = 19
+		pstr := "BitTorrent protocol"
+		reserved := [8]byte{0, 0, 0, 0, 0, 16, 0, 0}
+		peer_id := "UVG01234567891234567"
 
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, pstrlen)
-	binary.Write(&buff, binary.BigEndian, []byte(pstr))
-	binary.Write(&buff, binary.BigEndian, reserved)
-	binary.Write(&buff, binary.BigEndian, hash)
-	binary.Write(&buff, binary.BigEndian, []byte(peer_id))
+		var buff bytes.Buffer
+		binary.Write(&buff, binary.BigEndian, pstrlen)
+		binary.Write(&buff, binary.BigEndian, []byte(pstr))
+		binary.Write(&buff, binary.BigEndian, reserved)
+		binary.Write(&buff, binary.BigEndian, hash)
+		binary.Write(&buff, binary.BigEndian, []byte(peer_id))
 
-	p.connection.Write(buff.Bytes())
+		p.connection.Write(buff.Bytes())
 
-	result := make([]byte, 68)
-	p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
-	_, err := p.connection.Read(result)
-	if err != nil {
-		p.Close()
-		p.Log("failed handshake")
-		return
+		result := make([]byte, 68)
+		p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_, err := p.connection.Read(result)
+		if err != nil {
+			p.Log(fmt.Sprintf("Error: %v", err))
+			p.Close()
+			p.Log("failed handshake")
+			return
+		}
+
+		p.handshaked = true
+
+		// send extended handshake
+		buff.Reset()
+		metadata_message := "d1:md11:ut_metadatai1eee"
+		binary.Write(&buff, binary.BigEndian, uint32(len(metadata_message)+2))
+		binary.Write(&buff, binary.BigEndian, uint8(20))
+		binary.Write(&buff, binary.BigEndian, uint8(0))
+		binary.Write(&buff, binary.BigEndian, []byte(metadata_message))
+		p.connection.Write(buff.Bytes())
+
+		p.SendInterested()
+		p.Log("handshake success")
 	}
+}
 
-	p.handshaked = true
-
-	// send extended handshake
-	buff.Reset()
-	metadata_message := "d1:md11:ut_metadatai1eee"
-	binary.Write(&buff, binary.BigEndian, uint32(len(metadata_message)+2))
-	binary.Write(&buff, binary.BigEndian, uint8(20))
-	binary.Write(&buff, binary.BigEndian, uint8(0))
-	binary.Write(&buff, binary.BigEndian, []byte(metadata_message))
+func (p *Peer) SendKeepAlive() {
+	msg_len := 0
+	var buff bytes.Buffer
+	binary.Write(&buff, binary.BigEndian, msg_len)
 	p.connection.Write(buff.Bytes())
-
-	p.SendInterested()
-	p.Log("handshake success")
 }
 
 // tell the peer i'm looking for pieces
@@ -252,26 +264,30 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 		if p.chunk != nil && p.sent_chunk_req == false {
 			p.SendChunkRequest()
 		}
-		err, req_chunk := p.HandleMessage(metadata, request_chunk)
+		_, req_chunk := p.HandleMessage(metadata, request_chunk)
 
-		if err == true {
-			if p.chunk != nil {
+		//if err == true || !p.connected || !p.handshaked {
+		if p.chunk != nil && p.sent_chunk_req == true {
+			if !p.connected || !p.handshaked || p.chunk.GetStatus() != chunk.ChunkStatusDone {
 				p.Log("failed to get chunk")
 				// piece_index := int(p.chunk.GetPieceIndex())
 				// p.bitfield.SetBit(piece_index)
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
+				p.chunk = nil
 			}
 		}
 		
-		if req_chunk || p.get_chunk == true {
-			p.get_chunk = false
-			p.Log("getting next chunk")
-			p.GetChunkFromTorrent(request_chunk)
+		if p.connected && p.handshaked {
+			if  req_chunk || p.get_chunk == true {
+				p.get_chunk = false
+				p.Log("getting next chunk")
+				p.GetChunkFromTorrent(request_chunk)
+			}
 		}
 	}
-	if !p.connected {
-		time.Sleep(60 * 5 * time.Second)
-	}
+	//if !p.connected {
+		//time.Sleep(60 * time.Second)
+	//}
 	//if p.connected && p.handshaked {
 		// sleep provides a small window for graceful shutdown
 		// and to allow golang to switc hbetween goroutines
@@ -287,7 +303,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(10 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -297,6 +313,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 				p.Close()
 				return true, false
 			}
+			p.SendKeepAlive()
 			p.Log("timeout 1")
 			return true, true
 		}
@@ -313,11 +330,12 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 			if err != nil {
 				if err == io.EOF {
 					p.Log("eof 2")
-				} else {
-					p.Log("timeout 2")
+					p.Close()
+					return true, false
 				}
-				p.Close()
-				return true, false
+				p.SendKeepAlive()
+				p.Log("timeout 2")
+				return true, true
 			}
 			message_bytes_read += n
 		}
@@ -382,7 +400,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 							return false, true
 						} else {
 							p.Log("GOT WRONG PIECE")
-							return false, false
+							return true, false
 						}
 					}
 				}
@@ -438,8 +456,11 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) (bo
 			p.Close()
 			return true, false
 		}
+	} else if msg_length == 0 {
+		p.Log("Keep Alive")
+		return false, false
 	} else {
-		p.Log("bad msg len")
+		p.Log(fmt.Sprintf("%v bad msg len", msg_length))
 		p.Close()
 		return true, false
 	}
