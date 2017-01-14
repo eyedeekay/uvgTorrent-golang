@@ -88,11 +88,15 @@ func (p *Peer) GetChunkAtNextOpportunity() {
 	p.get_chunk = true
 }
 
+func (p *Peer) CanGetChunk() bool {
+	return p.get_chunk
+}
+
 // get chunk from torrent will send a request for the next
 // available chunk belonging to a piece this peer has available
 // for download
 func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
-	if p.IsMetadataLoaded() && p.IsChoked() == false && p.connected && p.handshaked && p.get_chunk == true {
+	if p.IsMetadataLoaded() && p.IsChoked() == false && p.IsConnected() && p.IsHandshaked() && p.CanGetChunk() {
 		// ask the torrent to call ClaimChunk at the next available opportunity
 		request_chunk <- p
 		select {
@@ -109,7 +113,7 @@ func (p *Peer) GetChunkFromTorrent(request_chunk chan *Peer) {
 // next available chunk in the main goroutine, unblocking
 // the peer
 func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
-	if p.IsChoked() == false && p.connected && p.handshaked {
+	if p.IsChoked() == false && p.IsConnected() && p.IsHandshaked() {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
@@ -189,23 +193,27 @@ func (p *Peer) Handshake(hash []byte) {
 }
 
 func (p *Peer) SendKeepAlive() {
-	msg_len := 0
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, msg_len)
-	p.connection.Write(buff.Bytes())
+	if p.IsConnected() && p.IsHandshaked() {
+		msg_len := 0
+		var buff bytes.Buffer
+		binary.Write(&buff, binary.BigEndian, msg_len)
+		p.connection.Write(buff.Bytes())
+	}
 }
 
 // tell the peer i'm looking for pieces
 // see: https://wiki.theory.org/BitTorrentSpecification
 func (p *Peer) SendInterested() {
-	var msg_len int32 = 1
-	var msg_id int8 = 2
+	if p.IsConnected() && p.IsHandshaked() {
+		var msg_len int32 = 1
+		var msg_id int8 = 2
 
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, msg_len)
-	binary.Write(&buff, binary.BigEndian, msg_id)
+		var buff bytes.Buffer
+		binary.Write(&buff, binary.BigEndian, msg_len)
+		binary.Write(&buff, binary.BigEndian, msg_id)
 
-	p.connection.Write(buff.Bytes())
+		p.connection.Write(buff.Bytes())
+	}
 }
 
 // request a chunk from a peer
@@ -279,6 +287,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 				p.Log("failed to get chunk")
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
+				time.Sleep(2 * time.Second)
 			}
 		}
 		

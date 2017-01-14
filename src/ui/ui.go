@@ -187,7 +187,7 @@ func (u *UI) Init(name string, trackers []*tracker.Tracker) {
     })
 
     termui.Handle("/sys/wnd/resize", func(e termui.Event) {
-        termui.Body.Width = termui.TermWidth()
+        //termui.Body.Width = termui.TermWidth()
         u.Refresh()
     })
 
