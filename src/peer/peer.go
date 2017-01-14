@@ -117,7 +117,8 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
-				if int64(i) > p.bitfield.Size() + 1 || p.bitfield.GetBit(i) {
+				p.Log(fmt.Sprintf("CLAIMING CHUNK %v %v", int64(i), p.bitfield.Size()))
+				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
 					ch := pi.GetNextChunk()
 
 					if ch != nil {
@@ -286,11 +287,12 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			if p.chunk.GetStatus() != chunk.ChunkStatusDone {
 				p.Log("failed to get chunk")
 				piece_index := int(p.chunk.GetPieceIndex())
-				p.bitfield.SetBit(piece_index)
+				p.bitfield.Grow(int64(piece_index) - p.bitfield.Size() - 1)
 				p.bitfield.ClearBit(piece_index)
+				p.Log(fmt.Sprintf("bit set to %v", p.bitfield.GetBit(piece_index)))
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
-				time.Sleep(10 * time.Second)
+				//time.Sleep(6)
 			}
 		}
 		
