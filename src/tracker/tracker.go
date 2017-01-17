@@ -190,10 +190,11 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
 
 func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *peer.Peer) {
 	for _, p := range t.peers {
-		go p.Run(hash, metadata, request_chunk)
+		if p.IsRunning() == false {
+			go p.Run(hash, metadata, request_chunk)
+		}
 	}
 
-	/*
 	time.Sleep(time.Duration(t.interval) * time.Second)
 	announce_status := make(chan bool)
 	go t.Connect(announce_status)
@@ -202,7 +203,7 @@ func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *pee
 	<-announce_status
 	t.Log("tracker updated")
 	go t.Run(hash, metadata, request_chunk)
-	*/
+	
 }
 
 func (t *Tracker) GetUrl() string {
