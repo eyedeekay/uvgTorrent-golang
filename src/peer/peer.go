@@ -41,6 +41,7 @@ type Peer struct {
 	// the chunk i'm currently working on
 	chunk      				 		*chunk.Chunk
 	get_chunk 						bool
+	ignore_bitfield					bool
 }
 
 func NewPeer(ip net.IP, port uint16) *Peer {
@@ -117,8 +118,7 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
-				p.Log(fmt.Sprintf("CLAIMING CHUNK %v %v", int64(i), p.bitfield.Size()))
-				if int64(i) > p.bitfield.Size() || p.bitfield.GetBit(i) {
+				if p.bitfield.GetBit(i) {
 					ch := pi.GetNextChunk()
 
 					if ch != nil {
@@ -129,7 +129,8 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 			}
 		}
 	}
-
+	
+	t.ignore_bitfield = true
 	p.GetChunkAtNextOpportunity()
 }
 
@@ -287,9 +288,8 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			if p.chunk.GetStatus() != chunk.ChunkStatusDone {
 				p.Log("failed to get chunk")
 				piece_index := int(p.chunk.GetPieceIndex())
-				p.bitfield.Grow(int64(piece_index) - p.bitfield.Size() - 1)
+				p.bitfield.SetBit(piece_index)
 				p.bitfield.ClearBit(piece_index)
-				p.Log(fmt.Sprintf("bit set to %v", p.bitfield.GetBit(piece_index)))
 				p.chunk.SetStatus(chunk.ChunkStatusReady)
 				p.chunk = nil
 				//time.Sleep(6)
@@ -313,7 +313,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
@@ -336,6 +336,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 		message := make([]byte, msg_length)
 		message_bytes_read := 0
 
+		p.connection.SetReadDeadline(time.Now().Add(10 * time.Second))
 		for int32(message_bytes_read) < msg_length {
 			n, err := p.connection.Read(message[message_bytes_read:msg_length])
 			if err != nil {
