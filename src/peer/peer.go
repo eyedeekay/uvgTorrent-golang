@@ -24,6 +24,7 @@ type Peer struct {
 	connected                		bool
 	closed                   		bool
 	handshaked               		bool
+	sent_handshake					bool
 	choked 				 			bool
 	ut_metadata              		int64
 	metadata_size            		int64
@@ -162,6 +163,9 @@ func (p *Peer) Handshake(hash []byte) {
 		pstrlen = 19
 		pstr := "BitTorrent protocol"
 		reserved := [8]byte{0, 0, 0, 0, 0, 16, 0, 0}
+		if p.sent_handshake == true {
+			reserved = [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+		}
 		peer_id := "UVG01234567891234567"
 
 		var buff bytes.Buffer
@@ -186,13 +190,17 @@ func (p *Peer) Handshake(hash []byte) {
 		p.handshaked = true
 
 		// send extended handshake
-		buff.Reset()
-		metadata_message := "d1:md11:ut_metadatai1eee"
-		binary.Write(&buff, binary.BigEndian, uint32(len(metadata_message)+2))
-		binary.Write(&buff, binary.BigEndian, uint8(20))
-		binary.Write(&buff, binary.BigEndian, uint8(0))
-		binary.Write(&buff, binary.BigEndian, []byte(metadata_message))
-		p.connection.Write(buff.Bytes())
+		if p.sent_handshake == false {
+			buff.Reset()
+			metadata_message := "d1:md11:ut_metadatai1eee"
+			binary.Write(&buff, binary.BigEndian, uint32(len(metadata_message)+2))
+			binary.Write(&buff, binary.BigEndian, uint8(20))
+			binary.Write(&buff, binary.BigEndian, uint8(0))
+			binary.Write(&buff, binary.BigEndian, []byte(metadata_message))
+			p.connection.Write(buff.Bytes())
+		}
+
+		p.sent_handshake = true
 
 		p.SendInterested()
 		p.Log("handshake success")
@@ -301,7 +309,8 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 					p.chunk.SetStatus(chunk.ChunkStatusReady)
 					p.chunk = nil
 					p.Close()
-					time.Sleep(30)
+					continue
+					//time.Sleep(30)
 				}
 			}
 		}
@@ -492,10 +501,10 @@ func (p *Peer) Close() {
 	p.Log("Close")
 	p.connected = false
 	p.handshaked = false
-	p.ut_metadata = 0
-	p.metadata_size = 0
-	p.metadata_chunks_received = 0
-	p.metadata_requested = false
+	//p.ut_metadata = 0
+	//p.metadata_size = 0
+	//p.metadata_chunks_received = 0
+	//p.metadata_requested = false
 	p.connection.Close()
 	p.choked = true
 	p.closed = false

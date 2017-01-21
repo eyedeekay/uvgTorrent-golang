@@ -12,6 +12,7 @@ import (
 	"github.com/zeebo/bencode"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Torrent struct {
@@ -99,7 +100,7 @@ func (t *Torrent) Run() {
 	// chan for delivering metadata to the torrent object
 	metadata := make(chan []byte, 500)
 	// chan for requesting the next available chunk of the torrent for a given peer to request
-	request_chunk := make(chan *peer.Peer)
+	request_chunk := make(chan *peer.Peer, 500)
 
 	for _, track := range t.Trackers {
 		if track.IsConnected() {
@@ -113,6 +114,7 @@ func (t *Torrent) Run() {
 			case data := <-metadata:
 				if t.metadata == nil {
 					t.ParseMetadata(data)
+					go t.update_ui()
 				}
 
 			// a peer alerts the torrent it is ready to request a chunk
@@ -121,23 +123,26 @@ func (t *Torrent) Run() {
 				p.ClaimChunk(t.pieces)
 
 				// update ui percent bar
-				if len(t.pieces) > 0 {
-					completed_chunks := 0
-					total_chunks := 0
-					for _, p := range t.pieces {
-						if p.IsDownloadable() {
-							completed, total, _ := p.ChunksCount()
-							total_chunks += total
-							completed_chunks += completed
-						}
-						
-					}
-
-					t.ui.SetPercent(completed_chunks, total_chunks)
-				}
-
 		}
 	}
+}
+
+func (t *Torrent) update_ui() {
+	if len(t.pieces) > 0 {
+		completed_chunks := 0
+		total_chunks := 0
+		for _, p := range t.pieces {
+			if p.IsDownloadable() {
+				completed, total, _ := p.ChunksCount()
+				total_chunks += total
+				completed_chunks += completed
+			}
+		}
+
+		t.ui.SetPercent(completed_chunks, total_chunks)
+	}
+	time.Sleep(1 * time.Second)
+	t.update_ui()
 }
 
 func (t *Torrent) ParseMetadata(data []byte) {
