@@ -301,6 +301,7 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 					p.chunk.SetStatus(chunk.ChunkStatusReady)
 					p.chunk = nil
 					p.Close()
+					time.Sleep(30)
 				}
 			}
 		}
@@ -318,7 +319,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 	var msg_length int32
 	length_bytes := make([]byte, 4)
 	length_bytes_read := 0
-	p.connection.SetReadDeadline(time.Now().Add(1 * time.Second))
+	p.connection.SetReadDeadline(time.Now().Add(20 * time.Second))
 
 	for length_bytes_read < len(length_bytes) {
 		n, err := p.connection.Read(length_bytes[length_bytes_read:4])
