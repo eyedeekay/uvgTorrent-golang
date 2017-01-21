@@ -51,9 +51,7 @@ func (ch *Chunk) GetLength() int64 {
 }
 
 func (ch *Chunk) GetStatus() int {
-	status := ch.status
-
-	return status
+	return ch.status
 }
 
 func (ch *Chunk) GetData() []byte {

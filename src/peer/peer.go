@@ -125,7 +125,7 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 		for i, pi := range pieces {
 			// if peer has piece
 			if pi.IsDownloadable() == true {
-				if p.bitfield.GetBit(i) || int64(i) > p.bitfield.MaxIndex() + 1 {
+				if p.bitfield.GetBit(i) || int64(i) > p.bitfield.MaxIndex() {
 					ch := pi.GetNextChunk()
 
 					if ch != nil {
@@ -142,7 +142,7 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 
 // establish a connection with the peer
 func (p *Peer) Connect() {
-	timeOut := time.Duration(30) * time.Second
+	timeOut := time.Duration(5) * time.Second
 
 	var err error
 	p.connection, err = net.DialTimeout("tcp", p.ip.String()+":"+fmt.Sprintf("%d", p.port), timeOut)
@@ -178,7 +178,7 @@ func (p *Peer) Handshake(hash []byte) {
 		p.connection.Write(buff.Bytes())
 
 		result := make([]byte, 68)
-		p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
+		p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
 		_, err := p.connection.Read(result)
 		if err != nil {
 			p.Log(fmt.Sprintf("Error: %v", err))
@@ -310,7 +310,6 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 					p.chunk = nil
 					p.Close()
 					continue
-					//time.Sleep(30)
 				}
 			}
 		}
@@ -340,7 +339,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 			}
 			p.Log("timeout 1")
 			p.SendKeepAlive()
-			p.GetChunkAtNextOpportunity()
+			//p.GetChunkAtNextOpportunity()
 			return
 		}
 		length_bytes_read += n
@@ -361,7 +360,7 @@ func (p *Peer) HandleMessage(metadata chan []byte, request_chunk chan *Peer) {
 				}
 				p.Log("timeout 2")
 				p.SendKeepAlive()
-				p.GetChunkAtNextOpportunity()
+				//p.GetChunkAtNextOpportunity()
 				return
 			}
 			message_bytes_read += n
