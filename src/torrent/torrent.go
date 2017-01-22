@@ -103,9 +103,7 @@ func (t *Torrent) Run() {
 	request_chunk := make(chan *peer.Peer)
 
 	for _, track := range t.Trackers {
-		if track.IsConnected() {
-			go track.Run(t.Hash, metadata, request_chunk)
-		}
+		go track.Run(t.Hash, metadata, request_chunk)
 	}
 
 	for {

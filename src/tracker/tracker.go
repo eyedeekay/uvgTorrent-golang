@@ -15,6 +15,7 @@ type Tracker struct {
 	url           string
 	connection    *net.UDPConn
 	connected     bool
+	connect_attempts uint32
 	connection_id uint64
 	interval      uint32
 	seeders       uint32
@@ -189,20 +190,26 @@ func (t *Tracker) ParseAnnounceResponse(announce_response []byte) bool {
 }
 
 func (t *Tracker) Run(hash []byte, metadata chan []byte, request_chunk chan *peer.Peer) {
-	for _, p := range t.peers {
-		if p.IsRunning() == false {
-			go p.Run(hash, metadata, request_chunk)
-		}
-	}
-
-	time.Sleep(time.Duration(t.interval) * time.Second)
 	announce_status := make(chan bool)
 	go t.Connect(announce_status)
 	<-announce_status
-	go t.Announce(hash, announce_status)
-	<-announce_status
-	t.Log("tracker updated")
-	go t.Run(hash, metadata, request_chunk)
+	if t.IsConnected() {
+		go t.Announce(hash, announce_status)
+		<-announce_status
+		for _, p := range t.peers {
+			if p.IsRunning() == false {
+				go p.Run(hash, metadata, request_chunk)
+			}
+		}
+		t.Log("tracker updated")
+
+		time.Sleep(time.Duration(t.interval) * time.Second)
+		go t.Run(hash, metadata, request_chunk)
+	}
+	t.connect_attempts++
+	if t.connect_attempts < 3 {
+		go t.Run(hash, metadata, request_chunk)
+	}
 	
 }
 

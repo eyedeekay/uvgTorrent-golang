@@ -178,7 +178,7 @@ func (p *Peer) Handshake(hash []byte) {
 		p.connection.Write(buff.Bytes())
 
 		result := make([]byte, 68)
-		p.connection.SetReadDeadline(time.Now().Add(5 * time.Second))
+		p.connection.SetReadDeadline(time.Now().Add(30 * time.Second))
 		_, err := p.connection.Read(result)
 		if err != nil {
 			p.Log(fmt.Sprintf("Error: %v", err))

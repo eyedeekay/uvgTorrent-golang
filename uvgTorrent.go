@@ -44,8 +44,8 @@ func main() {
 }
 
 func run(t *torrent.Torrent) {
-    t.ConnectTrackers()
-    t.AnnounceTrackers()
+    //t.ConnectTrackers()
+    //t.AnnounceTrackers()
     t.Run()
 }
 
