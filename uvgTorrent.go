@@ -12,17 +12,17 @@ import (
 
 func main() {
     // open a file
-    f, err := os.OpenFile("uvgTorrent.log", os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
-    if err != nil {
-      fmt.Printf("error opening file: %v", err)
-    }
+    //f, err := os.OpenFile("uvgTorrent.log", os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
+    //if err != nil {
+    //  fmt.Printf("error opening file: %v", err)
+    //}
 
     // don't forget to close it
-    defer f.Close()
+    //defer f.Close()
     
     // assign it to the standard logger
-    log.SetOutput(f)
-    //log.SetOutput(ioutil.Discard)
+    //log.SetOutput(f)
+    log.SetOutput(ioutil.Discard)
 
 	t := torrent.NewTorrent(os.Args[1])
 
