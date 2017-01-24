@@ -1,5 +1,9 @@
 package chunk
 
+import (
+	"sync"
+)
+
 // chunk status consts
 const (
 	ChunkStatusReady      = 0
@@ -13,6 +17,7 @@ type Chunk struct {
 	length 		int64
 	status      int
 	data        []byte
+	status_mutex *sync.Mutex
 }
 
 func NewChunk(index int64, piece_index int64, length int64) *Chunk {
@@ -24,6 +29,7 @@ func NewChunk(index int64, piece_index int64, length int64) *Chunk {
 	c.piece_index = piece_index
 	c.data = make([]byte, length)
 	c.length = length
+	c.status_mutex = &sync.Mutex{}
 
 	c.status = ChunkStatusReady
 
@@ -31,7 +37,9 @@ func NewChunk(index int64, piece_index int64, length int64) *Chunk {
 }
 
 func (ch *Chunk) SetStatus(status int) {
+	ch.status_mutex.Lock()
 	ch.status = status
+	ch.status_mutex.Unlock()
 }
 
 func (ch *Chunk) SetData(data []byte) {
@@ -51,7 +59,11 @@ func (ch *Chunk) GetLength() int64 {
 }
 
 func (ch *Chunk) GetStatus() int {
-	return ch.status
+	ch.status_mutex.Lock()
+	status := ch.status
+	ch.status_mutex.Unlock()
+
+	return status
 }
 
 func (ch *Chunk) GetData() []byte {

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
     "log"
+    "io/ioutil"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
     //}
 
     // don't forget to close it
-    //defer f.Close()
+    //gdefer f.Close()
     
     // assign it to the standard logger
     //log.SetOutput(f)

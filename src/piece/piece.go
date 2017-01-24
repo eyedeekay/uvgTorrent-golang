@@ -6,6 +6,7 @@ import (
 	"../config"
 	"math"
 	"crypto/sha1"
+	"sync"
 )
 
 type Piece struct {
@@ -18,6 +19,8 @@ type Piece struct {
 
 	chunks          []*chunk.Chunk
 	boundaries      map[*file.File]*Boundary
+
+	downloadable_mutex *sync.Mutex
 }
 
 type Boundary struct {
@@ -33,6 +36,7 @@ func NewPiece(index int64, length int64) *Piece {
 	p.length = length
 	p.bytes_remaining = p.length
 	p.downloadable = false
+	p.downloadable_mutex = &sync.Mutex{}
 
 	p.boundaries = make(map[*file.File]*Boundary)
 
@@ -89,11 +93,16 @@ func (p *Piece) SetHash(hash []byte) {
 }
 
 func (p *Piece) SetDownloadable(downloadable bool) {
+	p.downloadable_mutex.Lock()
 	p.downloadable = downloadable
+	p.downloadable_mutex.Unlock()
 }
 
 func (p *Piece) IsDownloadable() bool {
-	return p.downloadable
+	p.downloadable_mutex.Lock()
+	downloadable := p.downloadable
+	p.downloadable_mutex.Unlock()
+	return downloadable
 }
 
 func (p *Piece) GetHash() []byte {

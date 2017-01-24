@@ -137,6 +137,7 @@ func (p *Peer) ClaimChunk(pieces []*piece.Piece) {
 		}
 	}
 	
+	time.Sleep(1 * time.Second)
 	p.GetChunkAtNextOpportunity()
 }
 

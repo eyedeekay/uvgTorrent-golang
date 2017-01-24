@@ -118,9 +118,7 @@ func (t *Torrent) Run() {
 			// a peer alerts the torrent it is ready to request a chunk
 			case p := <-request_chunk:
 				// allow the peer to lay claim to an available chunk
-				p.ClaimChunk(t.pieces)
-
-				// update ui percent bar
+				go p.ClaimChunk(t.pieces)
 		}
 	}
 }
