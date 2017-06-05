@@ -304,9 +304,9 @@ func (p *Peer) Run(hash []byte, metadata chan []byte, request_chunk chan *Peer) 
 			if p.chunk != nil && p.sent_chunk_req == true {
 				if p.chunk.GetStatus() != chunk.ChunkStatusDone {
 					p.Log("failed to get chunk")
-					piece_index := int(p.chunk.GetPieceIndex())
-					p.bitfield.SetBit(piece_index)
-					p.bitfield.ClearBit(piece_index)
+					//piece_index := int(p.chunk.GetPieceIndex())
+					//p.bitfield.SetBit(piece_index)
+					//p.bitfield.ClearBit(piece_index)
 					p.chunk.SetStatus(chunk.ChunkStatusReady)
 					p.chunk = nil
 					p.Close()

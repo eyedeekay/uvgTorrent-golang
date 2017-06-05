@@ -20,7 +20,7 @@ func main() {
 
     // don't forget to close it
     //gdefer f.Close()
-    
+
     // assign it to the standard logger
     //log.SetOutput(f)
     log.SetOutput(ioutil.Discard)
@@ -36,7 +36,7 @@ func main() {
 	}()
 
     go run(t)
-	
+
     ui := ui.NewUI()
     t.SetUI(ui)
     ui.Init(t.Name, t.Trackers)
