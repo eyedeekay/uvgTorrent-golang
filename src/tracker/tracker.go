@@ -110,9 +110,9 @@ func (t *Tracker) Announce(hash []byte, done chan bool) {
 	// transaction id
 	binary.Write(&buf, binary.BigEndian, uint32(123))
 	// info hash
-	binary.Write(&buf, binary.LittleEndian, hash)
+	binary.Write(&buf, binary.BigEndian, hash)
 	// peer id
-	binary.Write(&buf, binary.LittleEndian, []byte("UVG01234567891234567"))
+	binary.Write(&buf, binary.BigEndian, []byte("UVG01234567891234567"))
 	// downloaded
 	binary.Write(&buf, binary.BigEndian, uint64(0))
 	// left
