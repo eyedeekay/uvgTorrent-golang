@@ -196,11 +196,11 @@ func Round(val float64, roundOn float64, places int) float64 {
 		if div >= roundOn {
 			round = math.Ceil(digit)
 		} else {
-			round = math.Floor(digit)
+			round = math.Ceil(digit)
 		}
 	} else {
 		if div >= roundOn {
-			round = math.Floor(digit)
+			round = math.Ceil(digit)
 		} else {
 			round = math.Ceil(digit)
 		}
